@@ -109,6 +109,7 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width 
 if(!require("tidyverse")) install.packages("tidyverse")
 library(tidyverse)
 library(RcppRoll)
+library(fmxdat)
 Example_data <- Texevier::Ex_Dat
 
 # Notice that as you are working in a .Rproj file (I am assuming you are) - the relative paths of your directories start at your specified root.
@@ -191,7 +192,7 @@ plottingDF <- joinedDF %>%
 g <- plottingDF %>% 
     ggplot() + 
     geom_line(aes(date, RollingReturns, color = Fund), alpha = 0.7, size = 1.25) + 
-    labs(title = "Illustration of Rolling 3 Year Annualized Returns Comparison", 
+    labs(title = "Rolling 3 Year Annualized Returns Comparison", 
         subtitle = "", x = "", y = "Rolling 3 year Returns (Ann.)", 
         caption = "") + 
     theme_fmx(title.size = ggpts(30), subtitle.size = ggpts(5), caption.size = ggpts(25), CustomCaption = F) + 
@@ -201,6 +202,31 @@ finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = T,
     y.pct = T, y.pct_acc = 1)
 
 
+
+```
+
+```{r}
+#Get all the returns in the same dataframe
+returnDF <- left_join(ASISA_average, BM_average, by = 'date') %>% 
+    left_join(AI_Fund, by='date')
+colnames(returnDF)<- c('date','Active', 'Benchmark', 'AI')
+returnDF <- returnDF %>% 
+    pivot_longer(cols = c(-date),
+                 names_to = "Fund",
+                 values_to = "Returns")
+
+# Plot the density functions of each return and add a line for the mean benchmark return
+mean_benchmark_returns <- mean(returnDF$Returns[returnDF$Fund == "Benchmark"])
+densityPlot <- ggplot(returnDF, aes(x = Returns)) + 
+    geom_density(aes(fill = Fund), alpha = 0.8) +
+    geom_vline(xintercept = mean_benchmark_returns, linetype = "dashed", color = "black") +
+    geom_text(aes(x = mean_benchmark_returns, y = 15), label = "Mean Benchmark Returns", 
+              vjust = -1, hjust = -0.05, color = "black") +
+    labs(title = "Density of Returns by Fund",
+         x = "Returns",
+         y = "Density") +
+    theme_minimal()
+densityPlot
 
 ```
 
