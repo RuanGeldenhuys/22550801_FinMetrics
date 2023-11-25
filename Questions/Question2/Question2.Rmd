@@ -252,7 +252,10 @@ weights <- c(0.18, 0.12, 0.42, 0.28)
 #Calculate returns and then Rolling SD of a hedged portfolio
 #i.e. you get the returns
 port1 <- Return.portfolio(Indexes, weights = weights, rebalance_on = "quarters")
-#port1_annualised_return <- Return.annualized(port1)
+
+hedged_annualised_return <- Return.annualized(port1, scale = 12)
+hedged_annualised_std <- StdDev.annualized(port1, scale = 12) 
+
 port_hedged_df <- xts_tbl(port1) %>% 
     mutate(RollSD = RcppRoll::roll_sd(1 + portfolio.returns, 36, fill = NA, align = "right") * 
     sqrt(12)) %>% 
@@ -263,12 +266,16 @@ port_hedged_df <- xts_tbl(port1) %>%
 port_unhedged_df <- xts_tbl(port1) %>% 
     left_join(ZAR_Returns, by = 'date')
 colnames(port_unhedged_df) <- c('date', 'portfolioReturns', 'currencyReturns')
-port_unhedged_df <- port_unhedged_df %>% 
-    mutate(Unhedged_Returns = (0.95*portfolioReturns) + (0.5*currencyReturns)) %>% 
-    select(c(date, Unhedged_Returns))
 
 port_unhedged_df <- port_unhedged_df %>% 
-    na.omit() %>% 
+    mutate(Unhedged_Returns = (0.95*portfolioReturns) + (0.5*currencyReturns)) %>% 
+    select(c(date, Unhedged_Returns)) %>% 
+    na.omit()
+
+unhedged_annualised_return <- Return.annualized(port_unhedged_df, scale = 12)
+unhedged_annualised_std <- StdDev.annualized(port_unhedged_df, scale = 12)
+
+port_unhedged_df <- port_unhedged_df %>% 
     mutate(RollSD_unhedged = RcppRoll::roll_sd(1 + Unhedged_Returns, 36, fill = NA, align = "right") * 
     sqrt(12)) %>% 
     filter(!is.na(RollSD_unhedged))   
