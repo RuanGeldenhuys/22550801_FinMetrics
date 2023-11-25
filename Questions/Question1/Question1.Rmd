@@ -167,11 +167,16 @@ AIvsActive <- chart.Scatter(x = xts.returnDF$AI,
                             main = "Scatter: AI vs Active Managers", col = "darkred",symbolset = 16, 
                             xlab = "AI", ylab = "Active Managers")
 
+```
+
+```{r}
+
 AIvsBenchmark <- chart.Scatter(x = xts.returnDF$AI, 
                             y = xts.returnDF$Benchmark, 
                             main = "Scatter: AI vs Benchmark", col = "darkblue",symbolset = 16, 
-                            xlab = "AI", ylab = "Active Managers")
+                            xlab = "AI", ylab = "Benchmark Indices")
 ```
+
 
 ```{r}
 
