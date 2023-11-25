@@ -110,6 +110,9 @@ if(!require("tidyverse")) install.packages("tidyverse")
 library(tidyverse)
 library(RcppRoll)
 library(fmxdat)
+library(RColorBrewer)
+library(tbl2xts)
+library(PerformanceAnalytics)
 Example_data <- Texevier::Ex_Dat
 
 # Notice that as you are working in a .Rproj file (I am assuming you are) - the relative paths of your directories start at your specified root.
@@ -134,15 +137,46 @@ BM <- read_rds("data/Capped_SWIX.rds")
 AI_Fund <- read_rds("data/AI_Max_Fund.rds")
 ```
 
+```{r}
+#Calculate the average ASISA return across all funds for a given month
+ASISA_average <- ASISA %>% 
+    group_by(date) %>% 
+    summarise(meanReturn = mean(Returns))
 
+#Calculate the average BM return across all indices for a given month
+BM_average <- BM %>% 
+    group_by(date) %>% 
+    summarise(meanReturn = mean(Returns))
+
+
+#Get all the returns in the same dataframe
+returnDF <- left_join(ASISA_average, BM_average, by = 'date') %>% 
+    left_join(AI_Fund, by='date')
+colnames(returnDF)<- c('date','Active', 'Benchmark', 'AI')
+
+returnDF <- returnDF %>% 
+    pivot_longer(cols = c(-date),
+                 names_to = "Fund",
+                 values_to = "Returns")
+
+xts.returnDF <- returnDF %>% 
+    tbl_xts(tblData = ., cols_to_xts = Returns, spread_by = Fund)
+
+AIvsActive <- chart.Scatter(x = xts.returnDF$AI, 
+                            y = xts.returnDF$Active, 
+                            main = "Scatter: AI vs Active Managers", col = "darkred",symbolset = 16, 
+                            xlab = "AI", ylab = "Active Managers")
+
+AIvsBenchmark <- chart.Scatter(x = xts.returnDF$AI, 
+                            y = xts.returnDF$Benchmark, 
+                            main = "Scatter: AI vs Benchmark", col = "darkblue",symbolset = 16, 
+                            xlab = "AI", ylab = "Active Managers")
+```
 
 ```{r}
 
 ##ASISA
-#Calculate the average return across all funds for a given month
-ASISA_average <- ASISA %>% 
-    group_by(date) %>% 
-    summarise(meanReturn = mean(Returns))
+
 
 #Calculate the annualized three year rolling return
 ASISA_RollRet <- ASISA_average %>% 
@@ -153,10 +187,7 @@ ASISA_RollRet <- ASISA_average %>%
     select(date, RollRets_ASISA)
     
 ##BM
-#Calculate the average return across all indices for a given month
-BM_average <- BM %>% 
-    group_by(date) %>% 
-    summarise(meanReturn = mean(Returns))
+
 
 ##Calculate the annualized three year rolling return
 BM_RollRet <- BM_average %>% 
@@ -196,7 +227,9 @@ g <- plottingDF %>%
         subtitle = "", x = "", y = "Rolling 3 year Returns (Ann.)", 
         caption = "") + 
     theme_fmx(title.size = ggpts(30), subtitle.size = ggpts(5), caption.size = ggpts(25), CustomCaption = F) + 
-    fmx_cols()
+    fmx_cols()+
+    scale_fill_brewer(palette = "Accent") 
+    
 
 finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = T, 
     y.pct = T, y.pct_acc = 1)
@@ -205,11 +238,16 @@ finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = T,
 
 ```
 
+
+
+
+
 ```{r}
-#Get all the returns in the same dataframe
-returnDF <- left_join(ASISA_average, BM_average, by = 'date') %>% 
-    left_join(AI_Fund, by='date')
-colnames(returnDF)<- c('date','Active', 'Benchmark', 'AI')
+returnDF <- returnDF %>% 
+    pivot_wider(names_from = Fund, values_from = Returns)
+returnDF <- returnDF %>% 
+    mutate(Active = Active - 0.025/12) %>%   # Applying a 25bps fee for active and AI fund
+    mutate(AI = AI - 0.025/12)
 returnDF <- returnDF %>% 
     pivot_longer(cols = c(-date),
                  names_to = "Fund",
@@ -218,15 +256,92 @@ returnDF <- returnDF %>%
 # Plot the density functions of each return and add a line for the mean benchmark return
 mean_benchmark_returns <- mean(returnDF$Returns[returnDF$Fund == "Benchmark"])
 densityPlot <- ggplot(returnDF, aes(x = Returns)) + 
-    geom_density(aes(fill = Fund), alpha = 0.8) +
+    geom_density(aes(fill = Fund), alpha = 0.9, color = NA) +
     geom_vline(xintercept = mean_benchmark_returns, linetype = "dashed", color = "black") +
-    geom_text(aes(x = mean_benchmark_returns, y = 15), label = "Mean Benchmark Returns", 
+    geom_text(aes(x = mean_benchmark_returns, y = 15), label = "Market Benchmark", 
               vjust = -1, hjust = -0.05, color = "black") +
     labs(title = "Density of Returns by Fund",
          x = "Returns",
          y = "Density") +
-    theme_minimal()
+    theme_minimal() +
+    scale_fill_brewer(palette = "Accent") +
+    theme(panel.border = element_rect(colour = "black", fill=NA, size=1))
+
 densityPlot
 
 ```
+
+```{r}
+#Find best performing fund
+years <- 2003:2023
+funds_with_complete_data <- ASISA %>%
+  mutate(Year = year(as.Date(date))) %>%
+  group_by(Fund) %>%
+  summarize(All_Years_Present = all(years %in% unique(Year))) %>%
+  filter(All_Years_Present) %>%
+  pull(Fund)
+
+BestActive <- ASISA %>%
+  filter(Fund %in% funds_with_complete_data) %>%
+  group_by(Fund) %>%
+  summarise(Average_Return = mean(Returns, na.rm = TRUE)) %>%
+  arrange(desc(Average_Return)) %>%
+  slice(1)
+BestActive$Fund
+
+BestActiveReturns <- ASISA %>% 
+    filter(Fund == BestActive$Fund) %>% 
+    select(c('date','Returns'))
+
+#Get the rolling returns for best fund
+Best_RollRet <- BestActiveReturns %>% 
+    mutate(RollRets_best = RcppRoll::roll_prod(1 + Returns, 36, fill = NA, align = "right")^(12/36)-1) %>% 
+    group_by(date) %>% 
+    filter(any(!is.na(RollRets_best))) %>% 
+    ungroup() %>%
+    select(date, RollRets_best)
+
+
+
+##Find worse performing fund
+WorstActive <- ASISA %>%
+  filter(Fund %in% funds_with_complete_data) %>%
+  group_by(Fund) %>%
+  summarise(Average_Return = mean(Returns, na.rm = TRUE)) %>%
+  arrange(Average_Return) %>%
+  slice(1)
+WorstActive$Fund
+
+WorstActiveReturns <- ASISA %>% 
+    filter(Fund == WorstActive$Fund) %>% 
+    select(c('date','Returns'))
+
+Worst_RollRet <- WorstActiveReturns %>% 
+    mutate(RollRets_worst = RcppRoll::roll_prod(1 + Returns, 36, fill = NA, align = "right")^(12/36)-1) %>% 
+    group_by(date) %>% 
+    filter(any(!is.na(RollRets_worst))) %>% 
+    ungroup() %>%
+    select(date, RollRets_worst)
+
+##Group these funds and AI into one dataset
+BestAndWorseDF <- left_join(Best_RollRet, Worst_RollRet, by = 'date') %>% 
+    left_join(AI_RollRet, by = 'date')
+colnames(BestAndWorseDF) <- c('date', 'BestActive', 'WorstActive', 'AI')
+
+
+plotDiff <- ggplot(BestAndWorseDF, aes(x = date)) +
+  geom_line(aes(y = BestActive, colour = "BestActive")) +
+  geom_line(aes(y = WorstActive, colour = "WorstActive")) +
+  geom_line(aes(y = AI, colour = "AI")) +
+  geom_ribbon(aes(ymin = WorstActive, ymax = BestActive), fill = "grey", alpha = 0.5) +
+  labs(title = "Comparison of Best and Worst Active funds vs AI Fund",
+       x = "Date",
+       y = "Rolling 3 Year Return (Ann.)",
+       colour = "Fund") +
+  scale_colour_manual(values = c("BestActive" = "blue", "WorstActive" = "red", "AI" = "green")) +
+  theme_minimal()+
+  theme(panel.border = element_rect(colour = "black", fill=NA, size=1))
+plotDiff
+```
+
 
