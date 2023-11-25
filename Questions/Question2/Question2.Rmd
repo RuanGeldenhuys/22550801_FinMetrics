@@ -249,6 +249,8 @@ colnames(PortfolioReturns) <- c('date', 'Return')
 
 weights <- c(0.18, 0.12, 0.42, 0.28)
 
+#Calculate returns and then Rolling SD of a hedged portfolio
+#i.e. you get the returns
 port1 <- Return.portfolio(Indexes, weights = weights, rebalance_on = "quarters")
 #port1_annualised_return <- Return.annualized(port1)
 port_hedged_df <- xts_tbl(port1) %>% 
@@ -256,6 +258,8 @@ port_hedged_df <- xts_tbl(port1) %>%
     sqrt(12)) %>% 
     filter(!is.na(RollSD))
 
+
+#Calculate returns and then rolling SD of an unhedged portfolio
 port_unhedged_df <- xts_tbl(port1) %>% 
     left_join(ZAR_Returns, by = 'date')
 colnames(port_unhedged_df) <- c('date', 'portfolioReturns', 'currencyReturns')
@@ -269,6 +273,7 @@ port_unhedged_df <- port_unhedged_df %>%
     sqrt(12)) %>% 
     filter(!is.na(RollSD_unhedged))   
 
+#Join the two portfolio SD's and the convert to long
 joined_portfolios <-
     left_join(port_hedged_df, port_unhedged_df, by = 'date') %>% 
     select(c(date, RollSD, RollSD_unhedged)) %>% 
@@ -277,6 +282,8 @@ joined_portfolios <-
                  names_to = 'portfolio',
                  values_to = 'RollSD')
 
+
+#Plot
 g <- joined_portfolios %>% 
     ggplot() + 
     geom_line(aes(date, RollSD, color = portfolio), alpha = 0.7, size = 1.25) + 
@@ -291,11 +298,6 @@ g <- joined_portfolios %>%
     finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = T, 
         y.pct = T, y.pct_acc = 1)
 
-
-
-
-
-#cor(port1_df$portfolio.returns, port1_df$value)
 ```
 
 
