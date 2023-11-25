@@ -109,6 +109,9 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width 
 if(!require("tidyverse")) install.packages("tidyverse")
 library(tidyverse)
 library(ggExtra)
+library(PerformanceAnalytics)
+library(tbl2xts)
+library(fmxdat)
 Example_data <- Texevier::Ex_Dat
 
 # Notice that as you are working in a .Rproj file (I am assuming you are) - the relative paths of your directories start at your specified root.
@@ -128,7 +131,7 @@ References are to be made as follows: @fama1997[p. 33] and @grinold2000 Such aut
 
 
 
-```{r, warning=FALSE}
+```{r Figure1,  warning =  FALSE, fig.align = 'center', fig.cap = "Caption Here \\label{Figure1}", fig.ext = 'png', fig.height = 3, fig.width = 6}
 Indexes <- read_rds("data/Cncy_Hedge_Assets.rds")
 ZAR <- read_rds("data/Monthly_zar.rds")
 
@@ -160,32 +163,27 @@ total_count <- nrow(cleanJoined)
 bothPositive_count <- sum(cleanJoined$Portfolio_Returns > 0 & cleanJoined$USDZAR_Returns > 0, na.rm = TRUE)
 percentage_positive <- round((bothPositive_count / total_count) * 100, 1)
 percentage_positive <- paste0(percentage_positive, "%")
-percentage_positive
 
 bothNegative_count <- sum(cleanJoined$Portfolio_Returns < 0 & cleanJoined$USDZAR_Returns < 0, na.rm = TRUE)
 percentage_negative <- round((bothNegative_count / total_count) * 100, 1)
 percentage_negative <- paste0(percentage_negative, "%")
-percentage_negative
 
 PosAndNeg_count <- sum(cleanJoined$Portfolio_Returns > 0 & cleanJoined$USDZAR_Returns < 0, na.rm = TRUE)
 percentage_PosAndNeg <- round((PosAndNeg_count / total_count) * 100, 1)
 percentage_PosAndNeg <- paste0(percentage_PosAndNeg, "%")
-percentage_PosAndNeg
 
 NegAndPos_count <- sum(cleanJoined$Portfolio_Returns < 0 & cleanJoined$USDZAR_Returns > 0, na.rm = TRUE)
 percentage_NegAndPos <- round((NegAndPos_count / total_count) * 100, 1)
 percentage_NegAndPos <- paste0(percentage_NegAndPos, "%")
-percentage_NegAndPos
 
 TopLeft_hedging <- sum(cleanJoined$Portfolio_Returns > 0 & cleanJoined$USDZAR_Returns < -0.025, na.rm = TRUE)
 percentage_TopLeft_hedge <- round((TopLeft_hedging / total_count) * 100, 1)
 percentage_TopLeft_hedge <- paste0(percentage_TopLeft_hedge, "%")
-percentage_TopLeft_hedge
 
 BotLeft_hedging <- sum(cleanJoined$Portfolio_Returns < 0 & cleanJoined$USDZAR_Returns < -0.025, na.rm = TRUE)
 percentage_BotLeft_hedge <- round((BotLeft_hedging / total_count) * 100, 1)
 percentage_BotLeft_hedge <- paste0(percentage_BotLeft_hedge, "%")
-percentage_BotLeft_hedge
+
 
 
 #Plotting this monster
@@ -224,13 +222,13 @@ p<- ggplot(joinedDF, aes(x = USDZAR_Returns, y = Portfolio_Returns)) +
     geom_label(aes(x = -0.025, y = -Inf, label = percentage_BotLeft_hedge), 
                hjust = 1, vjust = 0, size = 4, color = "black", fill = "white") +
     
-    geom_label(aes(x=-0.1, y=0.1, label = "Hedge works but amplifies volatility"),
+    geom_label(aes(x=-0.1, y=0.1, label = "Hedge works but \n amplifies volatility"),
                hjust = 0.5, vjust = 0.5, size = 4, color = "black", fill = "white") +
     geom_label(aes(x=0.1, y=0.1, label = "Hedge throws away returns"),
                hjust = 0.5, vjust = 0.5, size = 4, color = "black", fill = "white") +
     geom_label(aes(x=-0.1, y=-0.1, label = "Best case for Hedge"),
                hjust = 0.5, vjust = 0.5, size = 4, color = "black", fill = "white") +
-    geom_label(aes(x=0.1, y=-0.1, label = "Hedge works but amplifies volatility"),
+    geom_label(aes(x=0.1, y=-0.1, label = "Hedge removes currency \n cushion"),
                hjust = 0.5, vjust = 0.5, size = 4, color = "black", fill = "white") +
     
      theme(panel.border = element_rect(colour = "black", fill=NA, size=1))
@@ -245,4 +243,61 @@ p
 
 
 ```
+
+```{r}
+colnames(PortfolioReturns) <- c('date', 'Return')
+
+weights <- c(0.18, 0.12, 0.42, 0.28)
+
+port1 <- Return.portfolio(Indexes, weights = weights, rebalance_on = "quarters")
+#port1_annualised_return <- Return.annualized(port1)
+port_hedged_df <- xts_tbl(port1) %>% 
+    mutate(RollSD = RcppRoll::roll_sd(1 + portfolio.returns, 36, fill = NA, align = "right") * 
+    sqrt(12)) %>% 
+    filter(!is.na(RollSD))
+
+port_unhedged_df <- xts_tbl(port1) %>% 
+    left_join(ZAR_Returns, by = 'date')
+colnames(port_unhedged_df) <- c('date', 'portfolioReturns', 'currencyReturns')
+port_unhedged_df <- port_unhedged_df %>% 
+    mutate(Unhedged_Returns = (0.95*portfolioReturns) + (0.5*currencyReturns)) %>% 
+    select(c(date, Unhedged_Returns))
+
+port_unhedged_df <- port_unhedged_df %>% 
+    na.omit() %>% 
+    mutate(RollSD_unhedged = RcppRoll::roll_sd(1 + Unhedged_Returns, 36, fill = NA, align = "right") * 
+    sqrt(12)) %>% 
+    filter(!is.na(RollSD_unhedged))   
+
+joined_portfolios <-
+    left_join(port_hedged_df, port_unhedged_df, by = 'date') %>% 
+    select(c(date, RollSD, RollSD_unhedged)) %>% 
+    filter(!is.na(RollSD_unhedged)) %>% 
+    pivot_longer(-date,
+                 names_to = 'portfolio',
+                 values_to = 'RollSD')
+
+g <- joined_portfolios %>% 
+    ggplot() + 
+    geom_line(aes(date, RollSD, color = portfolio), alpha = 0.7, size = 1.25) + 
+        
+    labs(title = "Rolling 3 Year Annualized SD", 
+        subtitle = "", x = "", y = "Rolling 3 year SD (Ann.)", 
+        caption = "") + theme_fmx(title.size = ggpts(30), 
+        subtitle.size = ggpts(5), caption.size = ggpts(25), CustomCaption = F) + 
+        
+    fmx_cols()
+    
+    finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = T, 
+        y.pct = T, y.pct_acc = 1)
+
+
+
+
+
+#cor(port1_df$portfolio.returns, port1_df$value)
+```
+
+
+
 
