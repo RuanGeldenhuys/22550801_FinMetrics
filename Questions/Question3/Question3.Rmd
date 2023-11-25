@@ -144,7 +144,7 @@ monthlyALSI <- ALSI %>%
     mutate(MonthlyReturn = monthlyIndex/lag(monthlyIndex) - 1) %>% 
     filter(!is.na(MonthlyReturn))%>% 
     select(c(-monthlyIndex, -Return))
-monthlyALSI    
+   
 
 # WeightedAllShare <- monthlyALSI %>% 
 #     mutate(contribution = J203 * MonthlyReturn) %>% 
@@ -157,7 +157,6 @@ CapPerformance <- ALSI %>%
     filter(year(date) >= 2014) %>%  #Small cap stocks have a lot of NA's pre 2014. so I remove this data
     group_by(date, Index_Name) %>%
     summarise(averageReturn = mean(Return, na.rm = TRUE))
-    
 
 monthlyReturns <- CapPerformance %>% 
     mutate(YM = Year_Month(date)) %>% 
@@ -186,78 +185,134 @@ monthlyReturns_joined <- monthlyReturns %>%
                  values_to = 'Returns') %>% 
     na.omit() %>% 
     filter(Type != 'NA')
-monthlyReturns_joined
 
-ggplot(monthlyReturns_joined, aes(x = Returns, fill = Type)) +
-  geom_density(alpha = 0.5) +
-  labs(title = "Density of Returns by Type",
+
+cap_plot <- ggplot(monthlyReturns_joined, aes(x = Returns, fill = Type)) +
+    geom_density(alpha = 0.5) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "black")+
+    labs(title = "Density of Returns by Type vs SWIX",
        x = "Returns",
        y = "Density") +
-  theme_minimal()
+    theme_minimal()+
+    theme(panel.border = element_rect(colour = "black", fill=NA, size=1),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.box.background = element_rect(color = "black"))
 
-library(tbl2xts);library(PerformanceAnalytics);library(fmxdat)
-joined_xts <- 
-  tbl_xts(monthlyReturns_joined, cols_to_xts = Returns, spread_by = Tickers)
-
-plot_df <- bind_rows(
- 
-      joined_xts %>% tail(6) %>% 
-          PerformanceAnalytics::Return.annualized(., scale = 12) %>% data.frame() %>% mutate(Freq = "A"),
-      
-      joined_xts %>% tail(12) %>% 
-          PerformanceAnalytics::Return.annualized(., scale = 12) %>% data.frame() %>% mutate(Freq = "B"),
-      
-      joined_xts %>% tail(36) %>% 
-          PerformanceAnalytics::Return.annualized(., scale = 12) %>% data.frame() %>% mutate(Freq = "C"),
-      
-      joined_xts %>% tail(60) %>% 
-          PerformanceAnalytics::Return.annualized(., scale = 12) %>% data.frame() %>% mutate(Freq = "D"),
-      
-    ) %>% data.frame() %>% gather(Tickers, mu, -Freq)
+cap_plot
 
 
-#Plotting
-to_string <- as_labeller(c(`A` = "6 Months", `B` = "1 Year", `C` = "3 Years", `D` = "5 Years"))
+SectorPerformance <- ALSI %>% 
+    filter(Tickers %in% TopTickers) %>% 
+    filter(year(date) >= 2014) %>%  #Small cap stocks have a lot of NA's pre 2014. so I remove this data
+    group_by(date, Sector) %>%
+    summarise(averageReturn = mean(Return, na.rm = TRUE))
 
-g <- 
-    
-  plot_df %>%
-  
-  # Compare to (they are the exact same):
-  # dfplotxts %>%
-    
-  ggplot() + 
-    
-  geom_bar( aes(Tickers, mu, fill = Tickers), stat="identity") + 
-    
-  facet_wrap(~Freq, labeller = to_string, nrow = 1) + 
-    
-  labs(x = "", y = "Returns (Ann.)" , caption = "Note:\nReturns in excess of a year are in annualized terms.") + 
-    
-  fmx_fills() + 
-    
-  geom_label(aes(Tickers, mu, label = paste0( round(mu, 4)*100, "%" )), size = ggpts(8), alpha = 0.35, fontface = "bold", nudge_y = 0.002) + 
-    
-  theme_fmx(CustomCaption = T, title.size = ggpts(43), subtitle.size = ggpts(38), 
-                caption.size = ggpts(30), 
-            
-                axis.size = ggpts(37), 
-            
-                legend.size = ggpts(35),legend.pos = "top") +
+monthlyReturns_sect <- SectorPerformance %>% 
+    mutate(YM = Year_Month(date)) %>% 
+    mutate(monthlyIndex =cumprod(1 + averageReturn)) %>% 
+    group_by(YM) %>% 
+    filter(date == last(date)) %>% 
+    group_by(Sector) %>% 
+    mutate(MonthlyReturn = monthlyIndex/lag(monthlyIndex) - 1) %>% 
+    filter(!is.na(MonthlyReturn)) %>% 
+    select(c(date,Sector,MonthlyReturn))
 
-  theme(axis.text.x = element_blank(), axis.title.y = element_text(vjust=2)) + 
-    
-  theme(strip.text.x = element_text(face = "bold", size = ggpts(35), margin = margin(.1, 0, .1, 0, "cm"))) 
-  
-g
+monthlyReturns_sect_joined <- monthlyReturns_sect %>% 
+    pivot_wider(names_from = Sector,
+                values_from = MonthlyReturn) %>% 
+    mutate(YM = Year_Month(date)) %>% 
+    left_join(SWIX_new, by = 'YM') %>% 
+    select(-YM) %>% 
+    pivot_longer(-date,
+                 names_to = 'Sector',
+                 values_to = 'Returns') %>% 
+    na.omit() %>% 
+    filter(Sector != 'NA')
 
 
-test <- ALSI %>% 
-    filter(Index_Name == 'Mid_Caps') %>% 
-    filter(date == '2014-01-28') 
+sect_plot <- ggplot(monthlyReturns_sect_joined, aes(x = Returns, fill = Sector)) +
+    geom_density(alpha = 0.5) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "black")+
+    labs(title = "Density of Returns by Sector vs SWIX",
+       x = "Returns",
+       y = "Density") +
+    theme_minimal()+
+    theme(panel.border = element_rect(colour = "black", fill=NA, size=1),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.box.background = element_rect(color = "black"))
 
-mean(test$Return)
+sect_plot
+
 
 ```
 
+
+
+
+
+```{r}
+library(rmsfuns)
+library(kableExtra)
+pacman::p_load("tidyr", "tbl2xts","devtools","lubridate", "readr", "PerformanceAnalytics", "ggplot2", "dplyr")
+
+top_40_average_J203 <- ALSI %>%
+  group_by(Tickers) %>%
+  summarise(average_J203 = mean(J203, na.rm = TRUE)) %>%
+  arrange(desc(average_J203)) %>%
+  slice_head(n = 40)
+
+TopTickers <- unique(top_40_average_J203$Tickers)
+
+yearlyReturns_sect <- SectorPerformance %>% 
+    mutate(Year = format(date, '%Y')) %>% 
+    mutate(yearlyIndex =cumprod(1 + averageReturn)) %>% 
+    group_by(Year) %>% 
+    filter(date == last(date)) %>% 
+    group_by(Sector) %>% 
+    mutate(yearlyReturn = yearlyIndex/lag(yearlyIndex) - 1) %>% 
+    filter(!is.na(yearlyReturn)) %>% 
+    select(c(date,Sector,yearlyReturn))
+
+#Winzorising
+yearlyReturns_sect_df <- yearlyReturns_sect %>% 
+    mutate(Year = format(date, "%Y")) %>% 
+    group_by(Sector) %>% 
+    mutate(Top = quantile(yearlyReturn, 0.99), Bot = quantile(yearlyReturn, 0.01)) %>% 
+    mutate(Return = ifelse(yearlyReturn > Top, 
+                           Top, 
+                           ifelse(yearlyReturn < Bot, Bot, yearlyReturn))) %>% 
+    ungroup()
+
+
+ZAR_returns <- ZAR %>% 
+    mutate(Return = value/lag(value)-1) %>% 
+    filter(date > first(date)) %>% 
+    select(c(date, Return))
+ZAR_returns
+
+ZAR_sd <- ZAR_returns %>% 
+    mutate(Year = format(date, '%Y')) %>% 
+    group_by(Year) %>% 
+    summarise(SD = sd(Return)*sqrt(12)) %>% 
+  
+    mutate(TopQuantile = quantile(SD, 0.8), BotQuantile = quantile(SD, 0.2))
+
+Hi_Vol <- ZAR_sd %>%  filter(SD > TopQuantile) %>% pull(Year)
+Low_Vol <- ZAR_sd %>%  filter(SD < BotQuantile) %>% pull(Year)
+
+
+
+perf_hi <- Perf_comparisons(yearlyReturns_sect_df, YMs = Hi_Vol, Alias = "High_Vol")
+perf_lo <- Perf_comparisons(yearlyReturns_sect_df, YMs = Low_Vol, Alias = "Low_Vol")
+
+RatioTable <- kable(perf_hi)
+RatioTable
+
+```
+
+```{r}
+
+```
 
