@@ -101,18 +101,13 @@ abstract: |
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 5, fig.pos="H", fig.pos = 'H')
-# Note: Include = FALSE implies the code is executed, but not printed in your pdf.
-# warning and message = FALSE implies ugly messages and warnings are removed from your pdf.
-# These should be picked up when you execute the command chunks (code sections below) in your rmd, not printed in your paper!
 
-# Lets load in example data, and see how this can be stored and later called from your 'data' folder.
 if(!require("tidyverse")) install.packages("tidyverse")
 library(tidyverse)
-Example_data <- Texevier::Ex_Dat
 
-# Notice that as you are working in a .Rproj file (I am assuming you are) - the relative paths of your directories start at your specified root.
-# This means that when working in a .Rproj file, you never need to use getwd() - it is assumed as your base root automatically.
-write_rds(Example_data, path = "data/Example_data.rds")
+source("code/perf_comparisons.R")
+
+
 
 ```
 
@@ -201,6 +196,14 @@ cap_plot <- ggplot(monthlyReturns_joined, aes(x = Returns, fill = Type)) +
 
 cap_plot
 
+top_40_average_J203 <- ALSI %>%
+  group_by(Tickers) %>%
+  summarise(average_J203 = mean(J203, na.rm = TRUE)) %>%
+  arrange(desc(average_J203)) %>%
+  slice_head(n = 40)
+
+TopTickers <- unique(top_40_average_J203$Tickers)
+
 
 SectorPerformance <- ALSI %>% 
     filter(Tickers %in% TopTickers) %>% 
@@ -257,13 +260,7 @@ library(rmsfuns)
 library(kableExtra)
 pacman::p_load("tidyr", "tbl2xts","devtools","lubridate", "readr", "PerformanceAnalytics", "ggplot2", "dplyr")
 
-top_40_average_J203 <- ALSI %>%
-  group_by(Tickers) %>%
-  summarise(average_J203 = mean(J203, na.rm = TRUE)) %>%
-  arrange(desc(average_J203)) %>%
-  slice_head(n = 40)
 
-TopTickers <- unique(top_40_average_J203$Tickers)
 
 yearlyReturns_sect <- SectorPerformance %>% 
     mutate(Year = format(date, '%Y')) %>% 
@@ -290,7 +287,7 @@ ZAR_returns <- ZAR %>%
     mutate(Return = value/lag(value)-1) %>% 
     filter(date > first(date)) %>% 
     select(c(date, Return))
-ZAR_returns
+
 
 ZAR_sd <- ZAR_returns %>% 
     mutate(Year = format(date, '%Y')) %>% 
