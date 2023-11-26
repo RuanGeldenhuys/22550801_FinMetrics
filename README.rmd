@@ -25,6 +25,7 @@ library(RColorBrewer)
 library(tbl2xts)
 library(PerformanceAnalytics)
 library(ggExtra)
+library(kableExtra)
 ```
 
 
@@ -715,3 +716,150 @@ finplot(g2, x.date.dist = "1 year", x.date.type = "%Y", x.vert = T,
 ```
 
 The ALSI and the SWIX's rolling 3 year annualized returns closely follow each other. There is not much difference between the two for both a 5% and 10% cap. Interestingly, when looking at the period leading up to and straight after Covid-19, ALSI outperforms SWIX during the periods of high return, but under-performs during the downswing. This gap widens when looking at 10% capped portfolios.
+
+# Question 4
+
+This question looks at several funds, their returns and the flows of capital to and from those funds. They key question is then, do short term successes have an effect of flow of funds? To answer this I calculate correlation between short term returns and flows. I then investigate whether their exists any notable correlation between these correlations, fund size and average returns.
+
+I load the data and write a small function to calculate rolling returns for any amount of months I want, using 'rollapply' function from the 'zoo' package. I then calculate the rolling returns for each fund for 6 months, 1 year and 3 years. I then join this with the flows data.
+
+```{r}
+Flows <- read_rds("data/ASISA_Flows.rds")
+Rets <- read_rds("data/ASISA_Rets.rds")
+
+calculate_period_return <- function(data, months) {
+  data %>% 
+    group_by(Fund) %>%
+    arrange(Fund, date) %>%
+    mutate(RollingReturn = rollapply((1 + Returns), width = months, prod, fill = NA, align = 'right')) %>%
+    mutate(RollingReturn = RollingReturn - 1) # Subtracting 1 to get the actual return
+}
+
+# Calculate 6-month, 1-year, and 3-year returns
+rets_6m <- calculate_period_return(Rets, 6) %>% 
+    select(date, Fund, RollingReturn)
+rets_1y <- calculate_period_return(Rets, 12) %>% 
+    select(date, Fund, RollingReturn)
+rets_3y <- calculate_period_return(Rets, 36) %>% 
+    select(date, Fund, RollingReturn)
+
+#Join with flows
+joined_6m <- inner_join(rets_6m, Flows, by = c('date', 'Fund')) %>% 
+    filter(!is.na(RollingReturn) & !is.na(Flows)) %>% 
+    select(c(-Index, -FoF))
+    
+joined_1y <- inner_join(rets_1y, Flows, by = c('date', 'Fund')) %>% 
+    filter(!is.na(RollingReturn) & !is.na(Flows)) %>% 
+    select(c(-Index, -FoF))
+
+joined_3y <- inner_join(rets_3y, Flows, by = c('date', 'Fund')) %>% 
+    filter(!is.na(RollingReturn) & !is.na(Flows)) %>% 
+    select(c(-Index, -FoF))
+
+
+```
+
+Next I calculate the correlation between the rolling returns and the next months flows for each fund in the code below. This is then joined, averaged, and tabled.
+
+```{r warning=FALSE}
+cor_6m <- joined_6m %>%
+  group_by(Fund) %>%
+  mutate(next_Flows = lead(Flows)) %>%
+  filter(!is.na(next_Flows)) %>%
+  summarise(correlation = cor(RollingReturn, next_Flows, use = "complete.obs"))
+
+cor_1y <- joined_1y %>%
+  group_by(Fund) %>%
+  mutate(next_Flows = lead(Flows)) %>%
+  filter(!is.na(next_Flows)) %>%
+  summarise(correlation = cor(RollingReturn, next_Flows, use = "complete.obs"))
+
+cor_3y <- joined_3y %>%
+  group_by(Fund) %>%
+  mutate(next_Flows = lead(Flows)) %>%
+  filter(!is.na(next_Flows)) %>%
+  summarise(correlation = cor(RollingReturn, next_Flows, use = "complete.obs"))
+
+joined_cor <- left_join(cor_6m, cor_1y, by = "Fund") %>% 
+    left_join(cor_3y, by = 'Fund')
+colnames(joined_cor) <- c("Fund", "cor_6m", "cor_1y", "cor_3y")
+
+avg_6m_cor <- mean(cor_6m$correlation, na.rm = T)
+avg_1y_cor <- mean(cor_1y$correlation, na.rm = T)
+avg_3y_cor <- mean(cor_3y$correlation, na.rm = T)
+
+
+cor_table <- data.frame(avg_6m_cor, avg_1y_cor, avg_3y_cor)
+colnames(cor_table) <- c('6 Month', '1 Year', '3 Year')
+
+result <- kable(cor_table)
+result
+```
+
+The table above shows the average correlation between rolling returns and flows to a fund. As can be seen, very little correlation exists. The highest correlation is an 8% correlation for the 1 year rolling returns. This early result indicates that investors know that past wins do not mean future wins and as such don't flock to a fund that has been performing well recently.
+
+Next I calculate the total flows and the average returns for each fund and join this with the correlation dataframe.
+
+```{r}
+flow_df <- Flows %>% 
+    group_by(Fund) %>% 
+    summarise(TotalFlows = sum(Flows, na.rm = T))
+
+return_df <- Rets %>% 
+    group_by(Fund) %>% 
+    summarise(avgReturn = mean(Returns, na.rm = T))
+
+joined_df <- left_join(flow_df, return_df, by = 'Fund') %>% 
+    left_join(joined_cor, by = "Fund")
+```
+
+
+```{r warning=FALSE}
+g1 <- joined_df %>% 
+    arrange(desc(avgReturn)) %>% 
+    slice(1:50) %>%  #Only use top 50 funds to make plot more understandable
+    ggplot(aes(x=TotalFlows, y=cor_6m, size=avgReturn))+
+    geom_point(alpha=0.7, color = "steelblue")+
+    ylim(c(-0.8, 1.3))+
+    scale_size(range = c(3, 15), name="Average Returns")+
+    labs(title = "6 Month Correlation vs Total Flows",
+         x = 'Total Flows',
+         y = '1 Year Correlation')+ 
+    theme_fmx(title.size = ggpts(30), subtitle.size = ggpts(5), caption.size = ggpts(25), CustomCaption = F) + 
+    fmx_cols()
+
+finplot(g1)
+```
+
+```{r warning=FALSE}
+g2 <- joined_df %>% 
+    arrange(desc(avgReturn)) %>% 
+    slice(1:50) %>% 
+    ggplot(aes(x=TotalFlows, y=cor_1y, size=avgReturn))+
+    geom_point(alpha=0.7, color = "lightsalmon3")+
+    scale_size(range = c(3, 15), name="Average Returns")+
+    labs(title = "1 Year Correlation vs Total Flows",
+         x = 'Total Flows',
+         y = '1 Year Correlation')+ 
+    theme_fmx(title.size = ggpts(30), subtitle.size = ggpts(5), caption.size = ggpts(25), CustomCaption = F) + 
+    fmx_cols()
+finplot(g2)
+```
+
+```{r warning=FALSE}
+g3 <- joined_df %>% 
+    arrange(desc(avgReturn)) %>% 
+    slice(1:50) %>% 
+    ggplot(aes(x=TotalFlows, y=cor_3y, size=avgReturn))+
+    geom_point(alpha=0.7, color = "orange")+
+    scale_size(range = c(3, 15), name="Average Returns")+
+    labs(title = "3 Year Correlation vs Total Flows",
+         x = 'Total Flows',
+         y = '1 Year Correlation')+ 
+    theme_fmx(title.size = ggpts(30), subtitle.size = ggpts(5), caption.size = ggpts(25), CustomCaption = F) + 
+    fmx_cols()
+finplot(g3)
+```
+
+
+The plots above shows scatter plots between total flows for each fund and the correlation of returns and flows. The size of the points are determined by the average returns for that fund. It is clear that no correlation exists. This means that the total flows a fund receive does not change the perception of investors. They still hold the belief that past successes don't predict future winners. The average returns of a fund also don't seem to have an effect. It it did we would see all the large points gather at either the top or bottom of the graph. This result holds for the 6 month, 1 year and 3 year correlations.
