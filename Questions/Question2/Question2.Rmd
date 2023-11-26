@@ -3,7 +3,7 @@
 # Remove comments and add values where applicable.
 # The descriptions below should be self-explanatory
 
-title: "Helping You Write Academic Papers in R using Texevier"
+title: "Question 2: Currency Hedging Analysis"
 #subtitle: "This will appear as Right Header"
 
 documentclass: "elsarticle"
@@ -25,31 +25,31 @@ Thesis_FP: FALSE
 # --------- Front Page
 # Comment: ----- Follow this pattern for up to 5 authors
 AddTitle: TRUE # Use FALSE when submitting to peer reviewed platform. This will remove author names.
-Author1: "Jane Doe^[__Contributions:__  \\newline _The authors would like to thank no institution for money donated to this project. Thank you sincerely._]"  # First Author - note the thanks message displayed as an italic footnote of first page.
-Ref1: "Some Institution, Cape Town, South Africa" # First Author's Affiliation
-Email1: "nfkatzke\\@gmail.com" # First Author's Email address
+Author1: "Ruan Geldenhuys"  # First Author - note the thanks message displayed as an italic footnote of first page.
+Ref1: "Stellenbosch University, Stellenbosch, South Africa" # First Author's Affiliation
+Email1: "22550801\\@sun.ac.za" # First Author's Email address
 
-Author2: "John Smith"
-Ref2: "Some other Institution, Cape Town, South Africa"
-Email2: "John\\@gmail.com"
-CommonAffiliation_12: TRUE # If Author 1 and 2 have a common affiliation. Works with _13, _23, etc.
-
-Author3: "John Doe"
-Email3: "Joe\\@gmail.com"
-
-CorrespAuthor_1: TRUE  # If corresponding author is author 3, e.g., use CorrespAuthor_3: TRUE
+# Author2: "John Smith"
+# Ref2: "Some other Institution, Cape Town, South Africa"
+# Email2: "John\\@gmail.com"
+# CommonAffiliation_12: TRUE # If Author 1 and 2 have a common affiliation. Works with _13, _23, etc.
+# 
+# Author3: "John Doe"
+# Email3: "Joe\\@gmail.com"
+# 
+# CorrespAuthor_1: TRUE  # If corresponding author is author 3, e.g., use CorrespAuthor_3: TRUE
 
 # Comment out below to remove both. JEL Codes only given if keywords also given.
-keywords: "Multivariate GARCH \\sep Kalman Filter \\sep Copula" # Use \\sep to separate
-JELCodes: "L250 \\sep L100"
+# keywords: "Multivariate GARCH \\sep Kalman Filter \\sep Copula" # Use \\sep to separate
+# JELCodes: "L250 \\sep L100"
 
 # ----- Manage headers and footers:
 #BottomLFooter: $Title$
 #BottomCFooter:
 #TopLHeader: \leftmark # Adds section name at topleft. Remove comment to add it.
-BottomRFooter: "\\footnotesize Page \\thepage" # Add a '#' before this line to remove footer.
-addtoprule: TRUE
-addfootrule: TRUE               # Use if footers added. Add '#' to remove line.
+# BottomRFooter: "\\footnotesize Page \\thepage" # Add a '#' before this line to remove footer.
+# addtoprule: TRUE
+# addfootrule: TRUE               # Use if footers added. Add '#' to remove line.
 
 # --------- page margins:
 margin: 2.3 # Sides
@@ -74,7 +74,7 @@ csl: Tex/harvard-stellenbosch-university.csl # referencing format used.
 
 # ---------- General:
 RemovePreprintSubmittedTo: TRUE  # Removes the 'preprint submitted to...' at bottom of titlepage
-Journal: "Journal of Finance"   # Journal that the paper will be submitting to, if RemovePreprintSubmittedTo is set to TRUE.
+#Journal: "Journal of Finance"   # Journal that the paper will be submitting to, if RemovePreprintSubmittedTo is set to TRUE.
 toc: FALSE                       # Add a table of contents
 numbersections: TRUE             # Should sections (and thus figures and tables) be numbered?
 fontsize: 11pt                  # Set fontsize
@@ -91,8 +91,8 @@ output:
     template: Tex/TexDefault.txt
     fig_width: 3.5 # Adjust default figure sizes. This can also be done in the chunks of the text.
     fig_height: 3.5
-abstract: |
-  Abstract to be written here. The abstract should not be too long and should provide the reader with a good understanding what you are writing about. Academic papers are not like novels where you keep the reader in suspense. To be effective in getting others to read your paper, be as open and concise about your findings here as possible. Ideally, upon reading your abstract, the reader should feel he / she must read your paper in entirety.
+#abstract: |
+  
 ---
 
 <!-- First: Set your default preferences for chunk options: -->
@@ -112,26 +112,16 @@ library(ggExtra)
 library(PerformanceAnalytics)
 library(tbl2xts)
 library(fmxdat)
-Example_data <- Texevier::Ex_Dat
 
-# Notice that as you are working in a .Rproj file (I am assuming you are) - the relative paths of your directories start at your specified root.
-# This means that when working in a .Rproj file, you never need to use getwd() - it is assumed as your base root automatically.
-write_rds(Example_data, path = "data/Example_data.rds")
 
 ```
 
+# Introduction
 
-<!-- ############################## -->
-<!-- # Start Writing here: -->
-<!-- ############################## -->
-
-# Introduction \label{Introduction}
-
-References are to be made as follows: @fama1997[p. 33] and @grinold2000 Such authors could also be referenced in brackets [@grinold2000] and together [@fama1997 \& @grinold2000]. Source the reference code from scholar.google.com by clicking on ``cite'' below article name. Then select BibTeX at the bottom of the Cite window, and proceed to copy and paste this code into your ref.bib file, located in the directory's Tex folder. Open this file in Rstudio for ease of management, else open it in your preferred Tex environment. Add and manage your article details here for simplicity - once saved, it will self-adjust in your paper.
+This question focuses on a recent article that discusses the misconception surrounding hedging out the Rand. By replicating the figure within that article I therefore show that hedging vary rarely has beneficial effects. I then go further by showing how the volatility of a portfolio can actually be increased through hedging
 
 
-
-```{r Figure1,  warning =  FALSE, fig.align = 'center', fig.cap = "Caption Here \\label{Figure1}", fig.ext = 'png', fig.height = 3, fig.width = 6}
+```{r Figure1,  warning =  FALSE, fig.align = 'center', fig.cap = "Replicated Figure", fig.ext = 'png', fig.height = 3.5, fig.width = 7}
 Indexes <- read_rds("data/Cncy_Hedge_Assets.rds")
 ZAR <- read_rds("data/Monthly_zar.rds")
 
@@ -244,7 +234,11 @@ p
 
 ```
 
-```{r}
+
+The graph interpretation can be done as follows. If we find ourselves in the top left quadrant, it means portfolio returns are positive and USD/ZAR returns are negative. In this case a hedge will work but it increases volatility, a less than desirable outcome. This occurs for 46.2% of observations and 30.1% if we apply a fee. The bottom left quadrant shows when portfolio and USD/ZAR returns are negative. This is the best case scenario for a hedge, yet it only occurs 7.5% of the time. 2.2% when applying a fee. The top right and bottom right quadrant shows outright negative positions to be in when hedging against the Rand. These occur 19.9% and 25.8% respectively.
+
+
+```{r Figure2,  warning =  FALSE, fig.align = 'center', fig.cap = "Rolling 3 Year Annualized SD", fig.ext = 'png', fig.height = 4, fig.width = 6}
 colnames(PortfolioReturns) <- c('date', 'Return')
 
 weights <- c(0.18, 0.12, 0.42, 0.28)
@@ -307,6 +301,7 @@ g <- joined_portfolios %>%
 
 ```
 
+The graph displayed above illustrates the rolling three-year annualized standard deviation for both a hedged and an unhedged portfolio. What stands out is that, for most of the observed period, the unhedged portfolio exhibits lower volatility. This observation reinforces the points made earlier, demonstrating that hedging against the Rand actually elevates the portfolio's overall volatility. This outcome contradicts the primary goal of hedging against the Rand, which is to reduce volatility.
 
 
 
