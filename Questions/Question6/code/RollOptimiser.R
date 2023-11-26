@@ -11,10 +11,9 @@ Roll_optimizer <- function(return_mat, EndOfMonth, LookBack = 36, Amat, bvec){
     Sigma <- as.matrix(Matrix::nearPD(Sigma)$mat)
 
     My_Weights <- left_join(
-        optim_foo(type = "mv", mu, Sigma, bvec, Amat, printmsg = F),
-        optim_foo(type = "minvol", mu, Sigma, bvec, Amat, printmsg = F), by = "stocks") %>%
-        left_join(., optim_foo(type = "maxdecor", mu, Sigma, bvec, Amat, printmsg = F),  by = "stocks") %>%
-        left_join(., optim_foo(type = "sharpe", mu, Sigma, bvec, Amat, printmsg = F), by = "stocks") %>%
+        optimiser(type = "mv", mu, Sigma, bvec, Amat, printmsg = F),
+        optimiser(type = "minvol", mu, Sigma, bvec, Amat, printmsg = F), by = "stocks") %>%
+        left_join(., optimiser(type = "sharpe", mu, Sigma, bvec, Amat, printmsg = F), by = "stocks") %>%
         mutate(date = EndOfMonth , Look_Back_Period = LookBack)
 
 }

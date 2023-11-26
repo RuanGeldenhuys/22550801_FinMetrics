@@ -863,3 +863,106 @@ finplot(g3)
 
 
 The plots above shows scatter plots between total flows for each fund and the correlation of returns and flows. The size of the points are determined by the average returns for that fund. It is clear that no correlation exists. This means that the total flows a fund receive does not change the perception of investors. They still hold the belief that past successes don't predict future winners. The average returns of a fund also don't seem to have an effect. It it did we would see all the large points gather at either the top or bottom of the graph. This result holds for the 6 month, 1 year and 3 year correlations.
+
+
+# Question 6
+This question is aimed at optimising a portfolio that consists of multiple global indices, given multiple constraints. It is a question focused on methodology and as such, interpretation and discussion will be limited. The functions used for this question are located in 'Questions/Question6/code/'.
+
+
+```{r include=FALSE}
+source('Questions/Question6/code/ImputeFunctions.R')
+source('Questions/Question6/code/OptimisationFunction.R')
+source('Questions/Question6/code/RollOptimiser.R')
+```
+
+The code chunk below handles the initial loading and preperation of the data.
+```{r}
+# Load in Data
+MAA <- read_rds("data/MAA.rds") %>% select(-Name) %>% arrange(date) %>% rename(Tickers = Ticker)
+msci <- read_rds("data/msci.rds") %>%
+filter(Name %in% c("MSCI_ACWI", "MSCI_USA", "MSCI_RE", "MSCI_Jap")) %>% rename(Tickers = Name) %>% arrange(date)
+    
+# Combining datasets
+combined_df <- rbind(MAA, msci) %>% arrange(date)
+
+# Get funds that existed 3 years ago
+validfunds <- combined_df %>% 
+    group_by(Tickers) %>% 
+    filter(date == as.Date("2018/01/01")) %>% 
+    pull(Tickers) %>% unique()
+    
+# Filter for valid funds
+StartDate <- combined_df %>% 
+    filter(Tickers %in% validfunds) %>% 
+    group_by(Tickers) %>% 
+    summarise(date = dplyr::first(date)) %>% 
+    summarise(latest = dplyr::first(date))
+
+# Find the end of each month
+EndOfMonth <- combined_df %>% 
+    filter(Tickers %in% validfunds) %>% 
+    filter(date >= StartDate[[1]]) %>% 
+    select(date) %>% 
+    unique() %>% 
+    mutate(YM = format(date, "%Y%B")) %>% 
+    group_by(YM) %>% 
+    filter(date == dplyr::last(date)) %>% 
+    ungroup() %>% 
+    pull(date) %>% 
+    unique()
+
+# Quaterly Rebalancing dates
+RebalanceDates <- rmsfuns::dateconverter(as.Date(EndOfMonth[1]), as.Date(EndOfMonth[238]), 
+    "weekdayEOQ") 
+
+# Filter data quaterly dates, determine returns
+combined_df <- combined_df %>% 
+    filter(Tickers %in% validfunds) %>% 
+    filter(date >= StartDate[[1]]) %>% 
+    filter(date %in% RebalanceDates) %>% 
+    group_by(Tickers) %>% 
+    mutate(ret = Price/lag(Price) - 1) %>% 
+    filter(date > dplyr::first(date)) %>% 
+    select(-Price) %>%
+    spread(Tickers, ret)
+```
+
+This chunk handles missing values by calling a function called 'impute_missing_returns' (straight from practical). I then drop dates from the data frame.
+```{r}
+# Impute missing values for return series
+options(scipen = 999)
+return_mat <- 
+  impute_missing_returns(combined_df, impute_returns_method = "Drawn_Distribution_Collective", Seed = as.numeric(format( Sys.time(), "%Y%d%H%M")))
+
+# Create returns matrix
+return_mat_Nodate <- data.matrix(return_mat[, -1])
+```
+
+Next I set up my constraints. As given, no less than 1% of the portfolio can consist of one asset and no more than 40%. Equity holdings are restricted to 60% of the portfolio and bond holdings to 25%. I then set up the relevant matrices. I then map a function called 'Roll_Optimiser' to these matrices. This function will, along with some data preperation, call to another function, called 'optimiser'. This function applies a mean-variance, minimum volatility and a sharpe optimistaion method through 'quadprog' package. This outputs a table of the optimised weights over time.
+```{r}
+NStox <- ncol(return_mat_Nodate)
+LB = 0.01
+UB = 0.4
+Eq = 0.6 # Equity constraint
+Bonds = 0.25 # Bond constraint
+meq = 1
+
+Eq_mat <- rbind(matrix(0, nrow = 9, ncol = 4), -diag(4))
+C_B_mat <- rbind(matrix(0, 3, 6), -diag(6), matrix(0, 4, 6))
+
+bvec <- c(1, rep(LB, NStox), -rep(UB, NStox), -rep(Eq, 4), -rep(Bonds, 6))
+Amat <- cbind(1, diag(NStox), -diag(NStox), Eq_mat, C_B_mat)
+
+#Get optimal portfolio weights
+Result <- RebalanceDates %>% 
+    map_df(~Roll_optimizer(return_mat, EndOfMonth = ., Amat = Amat, bvec = bvec, LookBack = 36))
+
+printTable <- kable(head(Result,10))
+printTable
+```
+
+
+There you go. An optimised portfolio according to three different methods of optimisation. I output the first ten rows in the data frame here.
+
+
+

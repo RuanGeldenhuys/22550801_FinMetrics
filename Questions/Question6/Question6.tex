@@ -59,8 +59,7 @@
 \setlength{\parindent}{0cm}
 \setlength{\parskip}{1.3ex plus 0.5ex minus 0.3ex}
 \usepackage{textcomp}
-\renewcommand{\headrulewidth}{0.2pt}
-\renewcommand{\footrulewidth}{0.3pt}
+\renewcommand{\headrulewidth}{0pt}
 
 \usepackage{array}
 \newcolumntype{x}[1]{>{\centering\arraybackslash\hspace{0pt}}p{#1}}
@@ -178,57 +177,27 @@
 
 \begin{frontmatter}  %
 
-\title{Helping You Write Academic Papers in R using Texevier}
+\title{Question 6: Portfolio Optimisation}
 
 % Set to FALSE if wanting to remove title (for submission)
 
 
 
 
-\author[Add1]{Jane Doe\footnote{\textbf{Contributions:}
-  \newline \emph{The authors would like to thank no institution for
-  money donated to this project. Thank you sincerely.}}}
-\ead{nfkatzke@gmail.com}
-
-\author[Add1,Add2]{John Smith}
-\ead{John@gmail.com}
-
-\author[Add1,Add2]{John Doe}
-\ead{Joe@gmail.com}
+\author[Add1]{Ruan Geldenhuys}
+\ead{22550801@sun.ac.za}
 
 
 
-\address[Add1]{Some Institution, Cape Town, South Africa}
-\address[Add2]{Some other Institution, Cape Town, South Africa}
 
-\cortext[cor]{Corresponding author: Jane Doe\footnote{\textbf{Contributions:}
-  \newline \emph{The authors would like to thank no institution for
-  money donated to this project. Thank you sincerely.}}}
 
-\begin{abstract}
-\small{
-Abstract to be written here. The abstract should not be too long and
-should provide the reader with a good understanding what you are writing
-about. Academic papers are not like novels where you keep the reader in
-suspense. To be effective in getting others to read your paper, be as
-open and concise about your findings here as possible. Ideally, upon
-reading your abstract, the reader should feel he / she must read your
-paper in entirety.
-}
-\end{abstract}
+\address[Add1]{Stellenbosch University, Stellenbosch, South Africa}
+
+
 
 \vspace{1cm}
 
 
-\begin{keyword}
-\footnotesize{
-Multivariate GARCH \sep Kalman Filter \sep Copula \\
-\vspace{0.3cm}
-}
-\footnotesize{
-\textit{JEL classification} L250 \sep L100
-}
-\end{keyword}
 
 
 
@@ -247,7 +216,7 @@ Multivariate GARCH \sep Kalman Filter \sep Copula \\
 \chead{}
 \rhead{}
 \lfoot{}
-\rfoot{\footnotesize Page \thepage}
+\rfoot{}
 \lhead{}
 %\rfoot{\footnotesize Page \thepage } % "e.g. Page 2"
 \cfoot{}
@@ -261,33 +230,35 @@ Multivariate GARCH \sep Kalman Filter \sep Copula \\
 
 
 
-\begin{tabular}{l|r|r|r|r|l|r}
+\begin{tabular}{l|r|r|r|l|r}
 \hline
-stocks & mv & minvol & maxdecor & sharpe & date & Look\_Back\_Period\\
+stocks & mv & minvol & sharpe & date & Look\_Back\_Period\\
 \hline
-ADXY Index & 0.01 & 0.4000000 & 0.4000000 & 0.0769231 & 2002-03-29 & 36\\
+ADXY Index & 0.01 & 0.4000000 & 0.0769231 & 2002-03-29 & 36\\
 \hline
-BCOMTR Index & 0.01 & 0.0246831 & 0.0246831 & 0.0769231 & 2002-03-29 & 36\\
+BCOMTR Index & 0.01 & 0.0246831 & 0.0769231 & 2002-03-29 & 36\\
 \hline
-DXY Index & 0.01 & 0.2294918 & 0.2294918 & 0.0769231 & 2002-03-29 & 36\\
+DXY Index & 0.01 & 0.2294918 & 0.0769231 & 2002-03-29 & 36\\
 \hline
-LEATTREU Index & 0.01 & 0.0100000 & 0.0100000 & 0.0769231 & 2002-03-29 & 36\\
+LEATTREU Index & 0.01 & 0.0100000 & 0.0769231 & 2002-03-29 & 36\\
 \hline
-LGAGTRUH Index & 0.01 & 0.1447553 & 0.1447553 & 0.0769231 & 2002-03-29 & 36\\
+LGAGTRUH Index & 0.01 & 0.1447553 & 0.0769231 & 2002-03-29 & 36\\
 \hline
-LGCPTRUH Index & 0.01 & 0.0100000 & 0.0100000 & 0.0769231 & 2002-03-29 & 36\\
+LGCPTRUH Index & 0.01 & 0.0100000 & 0.0769231 & 2002-03-29 & 36\\
 \hline
-LP05TREH Index & 0.01 & 0.0100000 & 0.0100000 & 0.0769231 & 2002-03-29 & 36\\
+LP05TREH Index & 0.01 & 0.0100000 & 0.0769231 & 2002-03-29 & 36\\
 \hline
-LUACTRUU Index & 0.01 & 0.0100000 & 0.0100000 & 0.0769231 & 2002-03-29 & 36\\
+LUACTRUU Index & 0.01 & 0.0100000 & 0.0769231 & 2002-03-29 & 36\\
 \hline
-LUAGTRUU Index & 0.01 & 0.1210699 & 0.1210699 & 0.0769231 & 2002-03-29 & 36\\
+LUAGTRUU Index & 0.01 & 0.1210699 & 0.0769231 & 2002-03-29 & 36\\
 \hline
-MSCI\_ACWI & 0.40 & 0.0100000 & 0.0100000 & 0.0769231 & 2002-03-29 & 36\\
+MSCI\_ACWI & 0.40 & 0.0100000 & 0.0769231 & 2002-03-29 & 36\\
 \hline
 \end{tabular}
 
-`
+There you go. An optimised portfolio according to three different
+methods of optimisation. I output the first ten rows in the data frame
+here.
 
 \bibliography{Tex/ref}
 

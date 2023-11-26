@@ -1,6 +1,6 @@
-optim_foo <- function(type = "mv", mu, Sigma, bvec, Amat, printmsg = TRUE){
+optimiser <- function(type = "mv", mu, Sigma, bvec, Amat, printmsg = TRUE){
 
-    if(!type %in% c("mv", "minvol", "maxdecor", "sharpe")) {
+    if(!type %in% c("mv", "minvol", "sharpe")) {
         stop("Invalid strategy type")
     }
 
@@ -15,10 +15,6 @@ optim_foo <- function(type = "mv", mu, Sigma, bvec, Amat, printmsg = TRUE){
     if(type == "sharpe"){
         Amat[,1] <- mu
         optim_w <- Safe_Optim(Dmat = Sigma, dvec = rep(0, nrow(Sigma)), Amat = Amat, bvec = bvec,  meq = meq)
-    }
-    if(type == "maxdecor"){
-        Rho <- cov2cor(Sigma)
-        optim_w <- Safe_Optim(Dmat = Sigma, dvec = rep(0, nrow(Sigma)), Amat = Amat, bvec = bvec, meq = meq)
     }
 
     if(is.null(optim_w$error)){
