@@ -1,18 +1,13 @@
 Proportional_Cap_Foo <- function(df_Cons, W_Cap = 0.08){
-
-
-    # Let's require a specific form from the user... Alerting when it does not adhere this form
     if( !"weight" %in% names(df_Cons)) stop("... for Calc capping to work, provide weight column called 'weight'")
 
     if( !"date" %in% names(df_Cons)) stop("... for Calc capping to work, provide date column called 'date'")
 
     if( !"Tickers" %in% names(df_Cons)) stop("... for Calc capping to work, provide id column called 'Tickers'")
 
-    # First identify the cap breachers...
     Breachers <-
         df_Cons %>% filter(weight > W_Cap) %>% pull(Tickers)
 
-    # Now keep track of breachers, and add to it to ensure they remain at 10%:
     if(length(Breachers) > 0) {
 
         while( df_Cons %>% filter(weight > W_Cap) %>% nrow() > 0 ) {

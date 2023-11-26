@@ -297,9 +297,9 @@ usually does not last long.
 
 This question focuses on a recent article that discusses the
 misconception surrounding hedging out the Rand. By replicating the
-figure within that article I therefore show that hedging vary rarely has
+figure within that article I therefore show that hedging very rarely has
 beneficial effects. I then go further by showing how the volatility of a
-portfolio can actually be increased through hedging
+portfolio can actually be increased through hedging.
 
 For data preparation I load in the data and then apply the weights
 specified in the question to the corresponding asset by multiplying it
@@ -524,8 +524,9 @@ finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = T,
     y.pct = T, y.pct_acc = 1)
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-15-1.png) The
-graph displayed above illustrates the rolling three-year annualized
+![](README_files/figure-markdown_github/unnamed-chunk-15-1.png)
+
+The graph displayed above illustrates the rolling three-year annualized
 standard deviation for both a hedged and an unhedged portfolio. What
 stands out is that, for most of the observed period, the unhedged
 portfolio exhibits lower volatility. This observation reinforces the
@@ -533,3 +534,358 @@ points made earlier, demonstrating that hedging against the Rand
 actually elevates the portfolio’s overall volatility. This outcome
 contradicts the primary goal of hedging against the Rand, which is to
 reduce volatility.
+
+# Question 3
+
+This questions looks at two different all share indices, namely the ALSI
+and the SWIX. I compare these two indices by first estimating the
+cumulative returns for both broken down by sector and index. Next I
+perform stratification analysis using the ZAR to see how these indices
+react during currency volatility. Lastly, I compare the differences in
+returns for different capped portfolios.
+
+All functions for this question can be found in
+‘Questions/Question3/code/’.
+
+The code below first loads the required data. It then calculates the
+cumulative return for the ALSI and SWIX, first grouped by Sector and
+then by Index_Name. It does this by first pulling each unique sector out
+of the raw data. For each sector it then applies a function called
+‘calc_portfolio_returns’.
+
+This function calculates the returns for portfolios based on specified
+sectors and indices within a given dataset. Initially, it filters and
+normalizes the data based on the chosen sector and index, if provided.
+The function then separately processes data for two indices, J203 and
+J403, by selecting relevant columns, spreading the data, and converting
+it into a time-series format, handling any missing values. It calculates
+the portfolio returns for both J203 and J403 using the
+Safe_Return.portfolio function. Subsequently, it compiles raw data with
+portfolio data, calculating and summarizing portfolio returns by date.
+The final output joins the calculated returns from both J203 and J403,
+reshaping them into a long format for comparative analysis, and returns
+this dataset.
+
+After the function returns, the simple returns, this is converted into
+cumalative returns. Ultimately, all the cumulative returns for
+sectors/indices are joined into one using rbind. We are left with two
+data frames, one for Sector and one for Index
+
+``` r
+ALSI <- read_rds("data/ALSI.rds")
+RebDays <- read_rds("data/Rebalance_days.rds")
+ZAR <- read_rds("data/Monthly_zar.rds")
+
+
+#Calculate the returns for ALSI and SWIX, grouped by SECTOR
+sectors <- ALSI %>% pull(Sector) %>% unique()
+sectorReturns <- list()
+
+for(i in 1:length(sectors)){
+    sectorReturns[[i]] <- calc_portfolio_returns(ALSI, chosen_sector = sectors[i]) %>% 
+        group_by(Fund) %>% 
+        mutate(CumReturn = (cumprod(1 + Returns))) %>% 
+        mutate(CumReturn = CumReturn/first(CumReturn)) %>% 
+        mutate(Sector = sectors[i])
+}
+names(sectorReturns) <- sectors
+
+FullSectors_df <- rbind(sectorReturns[[1]],
+                         sectorReturns[[2]], 
+                         sectorReturns[[3]],
+                         sectorReturns[[4]]) %>% arrange(date)
+
+#Calculate the returns for ALSI and SWIX, grouped by INDEX
+indices <- ALSI %>%  pull(Index_Name) %>% na.omit(.) %>%  unique()
+IndexReturns<- list()
+
+for(i in 1:length(indices)){
+    IndexReturns[[i]] <- calc_portfolio_returns(ALSI, chosen_index = indices[i]) %>% 
+        group_by(Fund) %>% 
+        mutate(CumReturn = (cumprod(1 + Returns))) %>% 
+        mutate(CumReturn = CumReturn/first(CumReturn)) %>% 
+        mutate(Index = indices[i])
+}
+# Rename tibbles
+names(IndexReturns) <- indices
+# Combine Dataframes
+
+FullIndex_df <- rbind(IndexReturns[[1]],
+                      IndexReturns[[2]], 
+                      IndexReturns[[3]]) %>% arrange(date)
+```
+
+Next I plot the cumulative returns for both ALSI and SWIX, grouped first
+by sectors, then by index. The area under each curve is shaded. The row
+binded data frames above allow me to now use ‘facet_wrap’ and instantly
+have seperate plots for different sectors/indices.
+
+``` r
+#Create 4 facet wrapped plots of sector cumulative returns
+sector_plot <- ggplot(data = FullSectors_df, aes(x = date, y = CumReturn, group = Fund)) +
+    geom_line(aes(color = Fund)) +
+    geom_ribbon(data = filter(FullSectors_df, Fund == "J203"), aes(ymin = 0, ymax = CumReturn, fill = "J203"), alpha = 0.3) +
+    geom_ribbon(data = filter(FullSectors_df, Fund == "J403"), aes(ymin = 0, ymax = CumReturn, fill = "J403"), alpha = 0.3) +
+    scale_color_manual(values = c("J203" = "blue", "J403" = "red")) +
+    scale_fill_manual(values = c("J203" = "lightblue", "J403" = "pink")) +
+    guides(fill = guide_none()) +
+    scale_x_date(date_labels = "%Y-%m-%d") +
+    labs(title = "Cumulative Returns by Sector", x = "Date", y = "Cumulative Return") +
+    theme_minimal()+
+    facet_wrap(~ Sector, scales = "free_y", ncol = 1)+
+    theme(legend.position = "bottom")
+
+finplot(sector_plot)
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-18-1.png)
+
+``` r
+#Create 4 facet wrapped plots of index cumulative returns
+index_plot <- ggplot(data = FullIndex_df, aes(x = date, y = CumReturn, group = Fund)) +
+    geom_line(aes(color = Fund)) +
+    geom_ribbon(data = filter(FullIndex_df, Fund == "J203"), aes(ymin = 0, ymax = CumReturn, fill = "J203"), alpha = 0.3) +
+    geom_ribbon(data = filter(FullIndex_df, Fund == "J403"), aes(ymin = 0, ymax = CumReturn, fill = "J403"), alpha = 0.3) +
+    scale_color_manual(values = c("J203" = "blue", "J403" = "red")) +
+    scale_fill_manual(values = c("J203" = "lightblue", "J403" = "pink")) +
+    guides(fill = guide_none()) +
+    scale_x_date(date_labels = "%Y-%m-%d") +
+    labs(title = "Cumulative Returns by Index", x = "Date", y = "Cumulative Return") +
+    theme_minimal()+
+    facet_wrap(~ Index, scales = "free_y", ncol = 1)+
+    theme(legend.position = "bottom")
+
+finplot(index_plot)
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-18-2.png)
+
+When looking at Sectors, the SWIX(J403) and ALSI(J203) perform nearly
+identical when looking at the financial and property sector. ALSI
+outperforms SWIX in the industrial sector, but SWIX does better in
+resources. When looking at Index, interestingly, the ALSI outperforms
+SWIX across the board.
+
+The next step is to do stratification analysis with the Rand. This is
+done in the code chunk below. I first filter currency data to start at
+the same time as the ALSI and SWIX data, and then calculate the returns.
+Next I convert to yearly since the data is montly and calculate the 80%
+and 20% quantiles of the returns and save every year that exceeds those
+quantiles in lists. I then run the ‘calc_portfolio_returns’ function
+again as well as calculate the 1% quantiles for the portfolio returns.
+
+Next I apply a function callled ‘Perf_comparisons’. This function takes
+in the returns as well as the high and low volatility periods and
+returns a data frame that contains the full standard deviation for the
+index, as well as its standard deviation during either a high or low
+volatility period of the Rand.
+
+``` r
+ZAR_returns <- ZAR %>% 
+    filter(date > '2013-01-02') %>% #Filter for ZAR data after ALSI data start date
+    mutate(Return = value/lag(value)-1) %>% 
+    filter(date > first(date)) %>% 
+    select(c(date, Return))
+
+
+ZAR_sd <- ZAR_returns %>% 
+    mutate(Year = format(date, '%Y')) %>% 
+    group_by(Year) %>% 
+    summarise(SD = sd(Return)*sqrt(12)) %>% 
+  
+    mutate(TopQuantile = quantile(SD, 0.8), BotQuantile = quantile(SD, 0.2))
+
+Hi_Vol <- ZAR_sd %>%  filter(SD > TopQuantile) %>% pull(Year)
+Low_Vol <- ZAR_sd %>%  filter(SD < BotQuantile) %>% pull(Year)
+
+
+ReturnsDF <- calc_portfolio_returns(ALSI) %>% 
+    mutate(Year= format(date, "%Y")) %>% 
+    rename(Tickers = Fund, Return = Returns) %>% 
+    group_by(Tickers) %>% 
+    mutate(Top = quantile(Return, 0.99), Bot = quantile(Return, 0.01)) %>% 
+    mutate(Return = ifelse(Return > Top, Top, 
+                         ifelse(Return < Bot, Bot, Return))) %>% ungroup()
+
+perf_hi <- Perf_comparisons(ReturnsDF, Ys = Hi_Vol, Alias = "High_Vol")
+perf_lo <- Perf_comparisons(ReturnsDF, Ys = Low_Vol, Alias = "Low_Vol")
+
+perf_hi
+```
+
+    ## # A tibble: 2 × 5
+    ## # Groups:   Tickers [2]
+    ##   Tickers     SD Full_SD Period   Ratio
+    ##   <chr>    <dbl>   <dbl> <chr>    <dbl>
+    ## 1 J403    0.0431  0.0353 High_Vol  1.22
+    ## 2 J203    0.0425  0.0351 High_Vol  1.21
+
+``` r
+perf_lo
+```
+
+    ## # A tibble: 2 × 5
+    ## # Groups:   Tickers [2]
+    ##   Tickers     SD Full_SD Period  Ratio
+    ##   <chr>    <dbl>   <dbl> <chr>   <dbl>
+    ## 1 J203    0.0353  0.0351 Low_Vol 1.01 
+    ## 2 J403    0.0348  0.0353 Low_Vol 0.984
+
+Ratios above one indicate that that Ticker has a high (above usual)
+volatility for that given period. In the case of high volatility of the
+Rand, both the ALSI and SWIX show above usual volatility. Interestingly,
+ALSI also shows above usual volatility during periods of low Rand
+volatility.
+
+I now continue on to construct a capped portfolio for both the ALSI and
+SWIX. The first step is to load the rebalance days from the data. Next I
+create a function, called ‘calculate_capped_port’ that applies the
+‘Proportional_Cap_Foo’ function (straight from the practical) to this
+data. It then gets the returns and weights in xts form which allows me
+to construct a portfolio with the ‘rmsfuns::Safe_Return.portfolio’
+function. For both ALSI and SWIX, I filter for days that are rebalance
+days and reformat the data frame for the function. I then calculate
+portfolios for a 10% and 5% cap for ALSI and SWIX. Lastly, I calculate
+the 3 year rolling annualised return for each portfolio. Lastly, i join
+these rolling returns into 2 data frames, a 5% cap and a 10% cap.
+
+``` r
+RebDays <- RebDays %>% 
+    filter(Date_Type == 'Reb Trade Day')
+
+calculate_capped_port <- function(dataframe, W_cap, ColName) {
+
+    Capped_df <- dataframe %>% 
+        group_split(RebalanceTime) %>% 
+        map_df(~Proportional_Cap_Foo(., W_Cap = W_cap)) %>% 
+        select(-RebalanceTime)
+
+    df_weights <- Capped_df %>% 
+        tbl_xts(cols_to_xts = weight, spread_by = Tickers)
+
+    df_returns <- dataframe %>% 
+        filter(Tickers %in% unique(Capped_df$Tickers)) %>% 
+        tbl_xts(cols_to_xts = Return, spread_by = Tickers)
+
+    df_weights[is.na(df_weights)] <- 0
+    df_returns[is.na(df_returns)] <- 0
+
+    df_capped <- rmsfuns::Safe_Return.portfolio(R = df_returns, 
+                                                  weights = df_weights, 
+                                                  lag_weights = TRUE) %>% 
+        xts_tbl()
+    
+    colnames(df_capped) <- c('date', ColName)
+
+    return(df_capped)
+}
+
+### ALSI
+#Get data ready  for function
+rebalance_ALSI <- ALSI %>% 
+    filter(date %in% RebDays$date) %>% 
+    mutate(RebalanceTime = format(date, "%Y%B")) %>% 
+    select(date, Tickers, Return, J203, RebalanceTime) %>% 
+    rename(weight = J203) %>% 
+    mutate(weight = coalesce(weight , 0))
+
+ALSI_capped_10 <- calculate_capped_port(rebalance_ALSI, 0.1, 'ALSI_10')
+ALSI_capped_5 <- calculate_capped_port(rebalance_ALSI, 0.05, "ALSI_5")
+
+ALSI_10_rollrets <- ALSI_capped_10 %>% 
+    mutate(RollRets_ALSI_10 = RcppRoll::roll_prod(1 + ALSI_10, 4, fill = NA, align = "right")^(4/12)-1) %>% 
+    group_by(date) %>% 
+    filter(any(!is.na(RollRets_ALSI_10))) %>% 
+    ungroup() %>% 
+    select(date, RollRets_ALSI_10)
+
+ALSI_5_rollrets <- ALSI_capped_5 %>% 
+    mutate(RollRets_ALSI_5 = RcppRoll::roll_prod(1 + ALSI_5, 4, fill = NA, align = "right")^(4/12)-1) %>% 
+    group_by(date) %>% 
+    filter(any(!is.na(RollRets_ALSI_5))) %>% 
+    ungroup() %>% 
+    select(date, RollRets_ALSI_5)
+
+
+
+###SWIX
+rebalance_SWIX <- ALSI %>% 
+    filter(date %in% RebDays$date) %>% 
+    mutate(RebalanceTime = format(date, "%Y%B")) %>% 
+    select(date, Tickers, Return, J403, RebalanceTime) %>% 
+    rename(weight = J403) %>% 
+    mutate(weight = coalesce(weight , 0))
+  
+SWIX_capped_10 <- calculate_capped_port(rebalance_SWIX, 0.1, 'SWIX_10')
+SWIX_capped_5 <- calculate_capped_port(rebalance_SWIX, 0.05, 'SWIX_5')
+
+SWIX_10_rollrets <- SWIX_capped_10 %>% 
+    mutate(RollRets_SWIX_10 = RcppRoll::roll_prod(1 + SWIX_10, 4, fill = NA, align = "right")^(4/12)-1) %>% 
+    group_by(date) %>% 
+    filter(any(!is.na(RollRets_SWIX_10))) %>% 
+    ungroup() %>% 
+    select(date, RollRets_SWIX_10)
+
+SWIX_5_rollrets <- SWIX_capped_5 %>% 
+    mutate(RollRets_SWIX_5 = RcppRoll::roll_prod(1 + SWIX_5, 4, fill = NA, align = "right")^(4/12)-1) %>% 
+    group_by(date) %>% 
+    filter(any(!is.na(RollRets_SWIX_5))) %>% 
+    ungroup() %>% 
+    select(date, RollRets_SWIX_5)
+
+
+cap5_df <- left_join(ALSI_5_rollrets, SWIX_5_rollrets, by = 'date')
+plotdf_5 <- cap5_df %>% 
+    pivot_longer(-date,
+                 names_to = 'Fund',
+                 values_to = 'RollRet')
+
+cap10_df <- left_join(ALSI_10_rollrets, SWIX_10_rollrets, by = 'date')
+plotdf_10 <- cap10_df %>% 
+    pivot_longer(-date,
+                 names_to = 'Fund',
+                 values_to = 'RollRet')
+```
+
+Lastly, I plot the rolling returns grouped by the the portfolio cap.
+
+``` r
+g <- plotdf_5 %>% 
+    ggplot() + 
+    geom_line(aes(date, RollRet, color = Fund), alpha = 0.7, size = 1.25) + 
+    labs(title = "Rolling 3 Year Annualized Returns SWIX vs ALSI (5% cap)", 
+        subtitle = "", x = "", y = "Rolling 3 year Returns (Ann.)", 
+        caption = "") + 
+    theme_fmx(title.size = ggpts(30), subtitle.size = ggpts(5), caption.size = ggpts(25), CustomCaption = F) + 
+    fmx_cols()+
+    scale_fill_brewer(palette = "Accent") 
+
+finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = T, 
+    y.pct = T, y.pct_acc = 1)
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-21-1.png)
+
+``` r
+g2 <- plotdf_10 %>% 
+    ggplot() + 
+    geom_line(aes(date, RollRet, color = Fund), alpha = 0.7, size = 1.25) + 
+    labs(title = "Rolling 3 Year Annualized Returns SWIX vs ALSI (10% cap)", 
+        subtitle = "", x = "", y = "Rolling 3 year Returns (Ann.)", 
+        caption = "") + 
+    theme_fmx(title.size = ggpts(30), subtitle.size = ggpts(5), caption.size = ggpts(25), CustomCaption = F) + 
+    fmx_cols()+
+    scale_fill_brewer(palette = "Accent") 
+
+finplot(g2, x.date.dist = "1 year", x.date.type = "%Y", x.vert = T, 
+    y.pct = T, y.pct_acc = 1)
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-21-2.png)
+
+The ALSI and the SWIX’s rolling 3 year annualized returns closely follow
+each other. There is not much difference between the two for both a 5%
+and 10% cap. Interestingly, when looking at the period leading up to and
+straight after Covid-19, ALSI outperforms SWIX during the periods of
+high return, but under-performs during the downswing. This gap widens
+when looking at 10% capped portfolios.

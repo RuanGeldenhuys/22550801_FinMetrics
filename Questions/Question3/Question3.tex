@@ -59,8 +59,7 @@
 \setlength{\parindent}{0cm}
 \setlength{\parskip}{1.3ex plus 0.5ex minus 0.3ex}
 \usepackage{textcomp}
-\renewcommand{\headrulewidth}{0.2pt}
-\renewcommand{\footrulewidth}{0.3pt}
+\renewcommand{\headrulewidth}{0pt}
 
 \usepackage{array}
 \newcolumntype{x}[1]{>{\centering\arraybackslash\hspace{0pt}}p{#1}}
@@ -178,57 +177,27 @@
 
 \begin{frontmatter}  %
 
-\title{Helping You Write Academic Papers in R using Texevier}
+\title{Question 3: Portfolio Construction}
 
 % Set to FALSE if wanting to remove title (for submission)
 
 
 
 
-\author[Add1]{Jane Doe\footnote{\textbf{Contributions:}
-  \newline \emph{The authors would like to thank no institution for
-  money donated to this project. Thank you sincerely.}}}
-\ead{nfkatzke@gmail.com}
-
-\author[Add1,Add2]{John Smith}
-\ead{John@gmail.com}
-
-\author[Add1,Add2]{John Doe}
-\ead{Joe@gmail.com}
+\author[Add1]{Ruan Geldenhuys}
+\ead{22550801@sun.ac.za}
 
 
 
-\address[Add1]{Some Institution, Cape Town, South Africa}
-\address[Add2]{Some other Institution, Cape Town, South Africa}
 
-\cortext[cor]{Corresponding author: Jane Doe\footnote{\textbf{Contributions:}
-  \newline \emph{The authors would like to thank no institution for
-  money donated to this project. Thank you sincerely.}}}
 
-\begin{abstract}
-\small{
-Abstract to be written here. The abstract should not be too long and
-should provide the reader with a good understanding what you are writing
-about. Academic papers are not like novels where you keep the reader in
-suspense. To be effective in getting others to read your paper, be as
-open and concise about your findings here as possible. Ideally, upon
-reading your abstract, the reader should feel he / she must read your
-paper in entirety.
-}
-\end{abstract}
+\address[Add1]{Stellenbosch University, Stellenbosch, South Africa}
+
+
 
 \vspace{1cm}
 
 
-\begin{keyword}
-\footnotesize{
-Multivariate GARCH \sep Kalman Filter \sep Copula \\
-\vspace{0.3cm}
-}
-\footnotesize{
-\textit{JEL classification} L250 \sep L100
-}
-\end{keyword}
 
 
 
@@ -247,7 +216,7 @@ Multivariate GARCH \sep Kalman Filter \sep Copula \\
 \chead{}
 \rhead{}
 \lfoot{}
-\rfoot{\footnotesize Page \thepage}
+\rfoot{}
 \lhead{}
 %\rfoot{\footnotesize Page \thepage } % "e.g. Page 2"
 \cfoot{}
@@ -261,53 +230,93 @@ Multivariate GARCH \sep Kalman Filter \sep Copula \\
 
 
 
+\hypertarget{introduction}{%
+\section{Introduction}\label{introduction}}
+
+This questions looks at two different all share indices, namely the ALSI
+and the SWIX. I compare these two indices by first estimating the
+cumulative returns for both broken down by sector and index. Next I
+perform stratification analysis using the ZAR to see how these indices
+react during currency volatility. Lastly, I compare the differences in
+returns for different capped portfolios.
+
 \begin{figure}[H]
 
 {\centering \includegraphics{Question3_files/figure-latex/Figure1-1} 
 
 }
 
-\caption{Caption Here \label{Figure1}}\label{fig:Figure1-1}
+\caption{Cumulative Returns by Sector}\label{fig:Figure1}
 \end{figure}
+
 \begin{figure}[H]
 
-{\centering \includegraphics{Question3_files/figure-latex/Figure1-2} 
+{\centering \includegraphics{Question3_files/figure-latex/Figure1.2-1} 
 
 }
 
-\caption{Caption Here \label{Figure1}}\label{fig:Figure1-2}
+\caption{Cumulative Returns by Index}\label{fig:Figure1.2}
 \end{figure}
 
-\begin{verbatim}
-## # A tibble: 403 x 2
-##    date           Return
-##    <date>          <dbl>
-##  1 1990-02-28 -0.00137  
-##  2 1990-03-31  0.0382   
-##  3 1990-04-30  0.00320  
-##  4 1990-05-31  0.0000928
-##  5 1990-06-30 -0.00254  
-##  6 1990-07-31 -0.0245   
-##  7 1990-08-31 -0.00753  
-##  8 1990-09-30 -0.00175  
-##  9 1990-10-31 -0.00994  
-## 10 1990-11-30 -0.00965  
-## # i 393 more rows
-\end{verbatim}
+When looking at Sectors, the SWIX(J403) and ALSI(J203) perform nearly
+identical when looking at the financial and property sector. ALSI
+outperforms SWIX in the industrial sector, but SWIX does better in
+resources. When looking at Index, interestingly, the ALSI outperforms
+SWIX across the board.
+
+\hypertarget{stratification}{%
+\subsection{Stratification}\label{stratification}}
 
 \begin{tabular}{l|r|r|l|r}
 \hline
-Sector & SD & Full\_SD & Period & Ratio\\
+Tickers & SD & Full\_SD & Period & Ratio\\
 \hline
-Resources & 0.5302147 & 0.5296544 & High\_Vol & 1.0010579\\
+J403 & 0.0430683 & 0.0353458 & High\_Vol & 1.218486\\
 \hline
-Property & 0.4512482 & 0.4622541 & High\_Vol & 0.9761907\\
-\hline
-Industrials & 0.2255545 & 0.3155004 & High\_Vol & 0.7149103\\
-\hline
-Financials & 0.1193421 & 0.1789156 & High\_Vol & 0.6670301\\
+J203 & 0.0424829 & 0.0350994 & High\_Vol & 1.210359\\
 \hline
 \end{tabular}
+
+\begin{tabular}{l|r|r|l|r}
+\hline
+Tickers & SD & Full\_SD & Period & Ratio\\
+\hline
+J203 & 0.0353219 & 0.0350994 & Low\_Vol & 1.0063369\\
+\hline
+J403 & 0.0347819 & 0.0353458 & Low\_Vol & 0.9840453\\
+\hline
+\end{tabular}
+
+Ratios above one indicate that that Ticker has a high (above usual)
+volatility for that given period. In the case of high volatility of the
+Rand, both the ALSI and SWIX show above usual volatility. Interestingly,
+ALSI also shows above usual volatility during periods of low Rand
+volatility.
+
+\begin{figure}[H]
+
+{\centering \includegraphics{Question3_files/figure-latex/Figure2-1} 
+
+}
+
+\caption{Rolling 3 Year Annualized Returns SWIX vs ALSI (5\% cap)}\label{fig:Figure2}
+\end{figure}
+
+\begin{figure}[H]
+
+{\centering \includegraphics{Question3_files/figure-latex/Figure3-1} 
+
+}
+
+\caption{Rolling 3 Year Annualized Returns SWIX vs ALSI (10\% cap)}\label{fig:Figure3}
+\end{figure}
+
+The ALSI and the SWIX's rolling 3 year annualized returns closely follow
+each other. There is not much difference between the two for both a 5\%
+and 10\% cap. Interestingly, when looking at the period leading up to
+and straight after Covid-19, ALSI outperforms SWIX during the periods of
+high return, but under-performs during the downswing. This gap widens
+when looking at 10\% capped portfolios.
 
 \bibliography{Tex/ref}
 

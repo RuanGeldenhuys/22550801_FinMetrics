@@ -118,7 +118,7 @@ library(fmxdat)
 
 # Introduction
 
-This question focuses on a recent article that discusses the misconception surrounding hedging out the Rand. By replicating the figure within that article I therefore show that hedging vary rarely has beneficial effects. I then go further by showing how the volatility of a portfolio can actually be increased through hedging
+This question focuses on a recent article that discusses the misconception surrounding hedging out the Rand. By replicating the figure within that article I therefore show that hedging very rarely has beneficial effects. I then go further by showing how the volatility of a portfolio can actually be increased through hedging
 
 
 ```{r Figure1,  warning =  FALSE, fig.align = 'center', fig.cap = "Replicated Figure", fig.ext = 'png', fig.height = 3.5, fig.width = 7}

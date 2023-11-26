@@ -3,7 +3,7 @@
 # Remove comments and add values where applicable.
 # The descriptions below should be self-explanatory
 
-title: "Helping You Write Academic Papers in R using Texevier"
+title: "Question 3: Portfolio Construction"
 #subtitle: "This will appear as Right Header"
 
 documentclass: "elsarticle"
@@ -25,31 +25,31 @@ Thesis_FP: FALSE
 # --------- Front Page
 # Comment: ----- Follow this pattern for up to 5 authors
 AddTitle: TRUE # Use FALSE when submitting to peer reviewed platform. This will remove author names.
-Author1: "Jane Doe^[__Contributions:__  \\newline _The authors would like to thank no institution for money donated to this project. Thank you sincerely._]"  # First Author - note the thanks message displayed as an italic footnote of first page.
-Ref1: "Some Institution, Cape Town, South Africa" # First Author's Affiliation
-Email1: "nfkatzke\\@gmail.com" # First Author's Email address
+Author1: "Ruan Geldenhuys"  # First Author - note the thanks message displayed as an italic footnote of first page.
+Ref1: "Stellenbosch University, Stellenbosch, South Africa" # First Author's Affiliation
+Email1: "22550801\\@sun.ac.za" # First Author's Email address
 
-Author2: "John Smith"
-Ref2: "Some other Institution, Cape Town, South Africa"
-Email2: "John\\@gmail.com"
-CommonAffiliation_12: TRUE # If Author 1 and 2 have a common affiliation. Works with _13, _23, etc.
-
-Author3: "John Doe"
-Email3: "Joe\\@gmail.com"
-
-CorrespAuthor_1: TRUE  # If corresponding author is author 3, e.g., use CorrespAuthor_3: TRUE
+# Author2: "John Smith"
+# Ref2: "Some other Institution, Cape Town, South Africa"
+# Email2: "John\\@gmail.com"
+# CommonAffiliation_12: TRUE # If Author 1 and 2 have a common affiliation. Works with _13, _23, etc.
+# 
+# Author3: "John Doe"
+# Email3: "Joe\\@gmail.com"
+# 
+# CorrespAuthor_1: TRUE  # If corresponding author is author 3, e.g., use CorrespAuthor_3: TRUE
 
 # Comment out below to remove both. JEL Codes only given if keywords also given.
-keywords: "Multivariate GARCH \\sep Kalman Filter \\sep Copula" # Use \\sep to separate
-JELCodes: "L250 \\sep L100"
+# keywords: "Multivariate GARCH \\sep Kalman Filter \\sep Copula" # Use \\sep to separate
+# JELCodes: "L250 \\sep L100"
 
 # ----- Manage headers and footers:
 #BottomLFooter: $Title$
 #BottomCFooter:
 #TopLHeader: \leftmark # Adds section name at topleft. Remove comment to add it.
-BottomRFooter: "\\footnotesize Page \\thepage" # Add a '#' before this line to remove footer.
-addtoprule: TRUE
-addfootrule: TRUE               # Use if footers added. Add '#' to remove line.
+# BottomRFooter: "\\footnotesize Page \\thepage" # Add a '#' before this line to remove footer.
+# addtoprule: TRUE
+# addfootrule: TRUE               # Use if footers added. Add '#' to remove line.
 
 # --------- page margins:
 margin: 2.3 # Sides
@@ -74,7 +74,7 @@ csl: Tex/harvard-stellenbosch-university.csl # referencing format used.
 
 # ---------- General:
 RemovePreprintSubmittedTo: TRUE  # Removes the 'preprint submitted to...' at bottom of titlepage
-Journal: "Journal of Finance"   # Journal that the paper will be submitting to, if RemovePreprintSubmittedTo is set to TRUE.
+#Journal: "Journal of Finance"   # Journal that the paper will be submitting to, if RemovePreprintSubmittedTo is set to TRUE.
 toc: FALSE                       # Add a table of contents
 numbersections: TRUE             # Should sections (and thus figures and tables) be numbered?
 fontsize: 11pt                  # Set fontsize
@@ -91,10 +91,9 @@ output:
     template: Tex/TexDefault.txt
     fig_width: 3.5 # Adjust default figure sizes. This can also be done in the chunks of the text.
     fig_height: 3.5
-abstract: |
-  Abstract to be written here. The abstract should not be too long and should provide the reader with a good understanding what you are writing about. Academic papers are not like novels where you keep the reader in suspense. To be effective in getting others to read your paper, be as open and concise about your findings here as possible. Ideally, upon reading your abstract, the reader should feel he / she must read your paper in entirety.
+#abstract: |
+  
 ---
-
 <!-- First: Set your default preferences for chunk options: -->
 
 <!-- If you want a chunk's code to be printed, set echo = TRUE. message = FALSE stops R printing ugly package loading details in your final paper too. I also suggest setting warning = FALSE and checking for warnings in R, else you might find ugly warnings in your paper. -->
@@ -105,18 +104,21 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width 
 if(!require("tidyverse")) install.packages("tidyverse")
 library(tidyverse)
 library(pacman)
+library(zoo)
+library(tbl2xts)
 
 source("code/perf_comparisons.R")
+source('code/calculatePortfolioReturns.R')
+source('code/PortfolioCapping.R')
 
 
 
 ```
 
 
-<!-- ############################## -->
-<!-- # Start Writing here: -->
-<!-- ############################## -->
+# Introduction
 
+This questions looks at two different all share indices, namely the ALSI and the SWIX. I compare these two indices by first estimating the cumulative returns for both broken down by sector and index. Next I perform stratification analysis using the ZAR to see how these indices react during currency volatility. Lastly, I compare the differences in returns for different capped portfolios.
 
 
 ```{r}
@@ -128,7 +130,7 @@ ZAR <- read_rds("data/Monthly_zar.rds")
 ```
 
 
-```{r}
+```{r Figure1,  warning =  FALSE, fig.align = 'center', fig.cap = "Cumulative Returns by Sector", fig.ext = 'png', fig.height = 7, fig.width = 7}
 library(fmxdat)
 
 sectors <- ALSI %>% pull(Sector) %>% unique()
@@ -170,7 +172,7 @@ finplot(sector_plot)
 ```
 
 
-```{r}
+```{r Figure1.2,  warning =  FALSE, fig.align = 'center', fig.cap = "Cumulative Returns by Index", fig.ext = 'png', fig.height = 7, fig.width = 7}
 # Compare indices for ALSI and SWIX
 
 indices <- ALSI %>%  pull(Index_Name) %>% na.omit(.) %>%  unique()
@@ -199,16 +201,18 @@ index_plot <- ggplot(data = FullIndex_df, aes(x = date, y = CumReturn, group = F
     scale_fill_manual(values = c("J203" = "lightblue", "J403" = "pink")) +
     guides(fill = guide_none()) +
     scale_x_date(date_labels = "%Y-%m-%d") +
-    labs(title = "Cumulative Returns by Sector", x = "Date", y = "Cumulative Return") +
+    labs(title = "Cumulative Returns by Index", x = "Date", y = "Cumulative Return") +
     theme_minimal()+
     facet_wrap(~ Index, scales = "free_y", ncol = 1)+
     theme(legend.position = "bottom")
 
 finplot(index_plot)
 ```
+When looking at Sectors, the SWIX(J403) and ALSI(J203) perform nearly identical when looking at the financial and property sector. ALSI outperforms SWIX in the industrial sector, but SWIX does better in resources. When looking at Index, interestingly, the ALSI outperforms SWIX across the board.
+
 ## Stratification
 
-```{r}
+```{r warning=FALSE}
 ZAR_returns <- ZAR %>% 
     filter(date > '2013-01-02') %>% #Filter for ZAR data after ALSI data start date
     mutate(Return = value/lag(value)-1) %>% 
@@ -227,10 +231,9 @@ Hi_Vol <- ZAR_sd %>%  filter(SD > TopQuantile) %>% pull(Year)
 Low_Vol <- ZAR_sd %>%  filter(SD < BotQuantile) %>% pull(Year)
 
 
-ReturnsDF <- port_ret_func(ALSI) %>% 
-    group_by(Index) %>% 
+ReturnsDF <- calc_portfolio_returns(ALSI) %>% 
     mutate(Year= format(date, "%Y")) %>% 
-    rename(Tickers = Index, Return = Returns) %>% 
+    rename(Tickers = Fund, Return = Returns) %>% 
     group_by(Tickers) %>% 
     mutate(Top = quantile(Return, 0.99), Bot = quantile(Return, 0.01)) %>% 
     mutate(Return = ifelse(Return > Top, Top, 
@@ -246,17 +249,19 @@ RatioTable_High
 RatioTable_Low
 ```
 
+Ratios above one indicate that that Ticker has a high (above usual) volatility for that given period. In the case of high volatility of the Rand, both the ALSI and SWIX show above usual volatility. Interestingly, ALSI also shows above usual volatility during periods of low Rand volatility.
 
 
-```{r}
+
+
+
+```{r Figure2,  warning =  FALSE, fig.align = 'center', fig.cap = "Rolling 3 Year Annualized Returns SWIX vs ALSI (5% cap)", fig.ext = 'png', fig.height = 3, fig.width = 6}
 
 RebDays <- RebDays %>% 
     filter(Date_Type == 'Reb Trade Day')
 
 calculate_capped_port <- function(dataframe, W_cap, ColName) {
-    # Assuming the necessary libraries are loaded and the Proportional_Cap_Foo function is defined
-    # dataframe <- rebalance_ALSI
-    # W_cap <- 0.1
+
     Capped_df <- dataframe %>% 
         group_split(RebalanceTime) %>% 
         map_df(~Proportional_Cap_Foo(., W_Cap = W_cap)) %>% 
@@ -269,7 +274,6 @@ calculate_capped_port <- function(dataframe, W_cap, ColName) {
         filter(Tickers %in% unique(Capped_df$Tickers)) %>% 
         tbl_xts(cols_to_xts = Return, spread_by = Tickers)
 
-    # Corrected variable names from your original code
     df_weights[is.na(df_weights)] <- 0
     df_returns[is.na(df_returns)] <- 0
 
@@ -361,6 +365,11 @@ g <- plotdf_5 %>%
 finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = T, 
     y.pct = T, y.pct_acc = 1)
 
+
+
+```
+
+```{r Figure3,  warning =  FALSE, fig.align = 'center', fig.cap = "Rolling 3 Year Annualized Returns SWIX vs ALSI (10% cap)", fig.ext = 'png', fig.height = 3, fig.width = 6}
 g2 <- plotdf_10 %>% 
     ggplot() + 
     geom_line(aes(date, RollRet, color = Fund), alpha = 0.7, size = 1.25) + 
@@ -373,6 +382,7 @@ g2 <- plotdf_10 %>%
 
 finplot(g2, x.date.dist = "1 year", x.date.type = "%Y", x.vert = T, 
     y.pct = T, y.pct_acc = 1)
-
 ```
 
+
+The ALSI and the SWIX's rolling 3 year annualized returns closely follow each other. There is not much difference between the two for both a 5% and 10% cap. Interestingly, when looking at the period leading up to and straight after Covid-19, ALSI outperforms SWIX during the periods of high return, but under-performs during the downswing. This gap widens when looking at 10% capped portfolios.
