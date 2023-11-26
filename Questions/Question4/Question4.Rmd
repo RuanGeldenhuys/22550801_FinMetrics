@@ -108,303 +108,189 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width 
 # Lets load in example data, and see how this can be stored and later called from your 'data' folder.
 if(!require("tidyverse")) install.packages("tidyverse")
 library(tidyverse)
-Example_data <- Texevier::Ex_Dat
+Flows <- read_rds("data/ASISA_Flows.rds")
+Rets <- read_rds("data/ASISA_Rets.rds")
 
-# Notice that as you are working in a .Rproj file (I am assuming you are) - the relative paths of your directories start at your specified root.
-# This means that when working in a .Rproj file, you never need to use getwd() - it is assumed as your base root automatically.
-write_rds(Example_data, path = "data/Example_data.rds")
 
 ```
 
 
-<!-- ############################## -->
-<!-- # Start Writing here: -->
-<!-- ############################## -->
+You have been approached by Morningstar to provide insight into industry fund flows between actively managed funds. You recently read Warren Buffet’s 2004 Berkshire Hathaway AGM report that mentioned the high degree of value destruction from investors changing their strategies and allocating to managers based on past performance.
 
-# Introduction \label{Introduction}
+Use your discretion to write a short report where you study the persistence of past performance for local active managers through time; whether there is any truth to the direction of flows toward winners based on past performance (be flexible in the look back period that you consider to identify past winners).
 
-References are to be made as follows: @fama1997[p. 33] and @grinold2000 Such authors could also be referenced in brackets [@grinold2000] and together [@fama1997 \& @grinold2000]. Source the reference code from scholar.google.com by clicking on ``cite'' below article name. Then select BibTeX at the bottom of the Cite window, and proceed to copy and paste this code into your ref.bib file, located in the directory's Tex folder. Open this file in Rstudio for ease of management, else open it in your preferred Tex environment. Add and manage your article details here for simplicity - once saved, it will self-adjust in your paper.
-
-> I suggest renaming the top line after \@article, as done in the template ref.bib file, to something more intuitive for you to remember. Do not change the rest of the code. Also, be mindful of the fact that bib references from google scholar may at times be incorrect. Reference Latex forums for correct bibtex notation.
-
-To reference a section, you have to set a label using ``\\label'' in R, and then reference it in-text as e.g. referencing a later section, Section \ref{Meth}.
-
-Writing in Rmarkdown is surprizingly easy - see [this website](https://www.rstudio.com/wp-content/uploads/2015/03/rmarkdown-reference.pdf) cheatsheet for a summary on writing Rmd writing tips.
-
-# Data  {-}
-
-Notice how I used the curly brackets and dash to remove the numbering of the data section.
-
-Discussion of data should be thorough with a table of statistics and ideally a figure.
-
-In your tempalte folder, you will find a Data and a Code folder. In order to keep your data files neat, store all of them in your Data folder. Also, I strongly suggest keeping this Rmd file for writing and executing commands, not writing out long pieces of data-wrangling. In the example below, I simply create a ggplot template for scatter plot consistency. I suggest keeping all your data in a data folder.
-
-<!-- The following is a code chunk. It must have its own unique name (after the r), or no name. After the comma follows commands for R which are self-explanatory. By default, the code and messages will not be printed in your pdf, just the output: -->
+Ultimately, you want to test whether past performance is a good indicator of future performance for active managers, and whether investment flows go predominantly to past winners, and what the performance would have been for strategies that elected to chase winners.
 
 ```{r Figure1,  warning =  FALSE, fig.align = 'center', fig.cap = "Caption Here \\label{Figure1}", fig.ext = 'png', fig.height = 3, fig.width = 6}
 
-  # This is just a random plot to show you a plot. This is done if the getwd() does not point to your Template's directory.
-  # Set WD below to your project's working directory.
-
-  g <-
-  ggplot(data = mtcars) +
-  geom_point(aes(x = disp, y = hp, color = cyl)) +
-  theme_bw() +
-  # theme(legend.position = "none") +
-  theme(plot.title = element_text(size = 10)) +
-  theme(axis.title = element_text(size = 10),
-        axis.title.x = element_text()) +
-  labs(y = "y-axis", x = "x-axis", title = "Some amazing plot")
-
-g
 
 ```
 
-To make your graphs look extra nice in latex world, you could use Tikz device. Replace dev - 'png' with 'tikz' in the chunk below. Notice this makes the build time longer and produces extra tex files - so if you are comfortable with this, set your device to Tikz and try it out:
 
-```{r Figure2, warning =  FALSE, fig.align = 'center', fig.cap = "Caption Here \\label{Figure2}", fig.height = 3, fig.width = 6, dev = 'png'}
 
-ExampleData <- read_rds( "data/Example_data.rds")
+```{r}
+library(dplyr)
+library(lubridate)
+library(zoo)
 
-source("code/Example_Plot_Scatter.R") # Load a function from your 'code' folder. This e.g. plots scatters to your own preferences.
-source( "code/Data_Create.R") #
+# Assuming Rets is your data frame
+Rets <- Rets %>% 
+  mutate(date = as.Date(date, format = "%Y-%m-%d"))
 
-ExampleData <- Data_Create(N = 100) # Same as the ExampleData loaded above - this is just a function to create the stored data.
+calculate_period_return <- function(data, months) {
+  data %>% 
+    group_by(Fund) %>%
+    arrange(Fund, date) %>%
+    mutate(RollingReturn = rollapply((1 + Returns), width = months, prod, fill = NA, align = 'right')) %>%
+    mutate(RollingReturn = RollingReturn - 1) # Subtracting 1 to get the actual return
+}
 
-g <- Example_Plot_Scatter(DataInput = ExampleData,
-                          X = "Height_Score",
-                          Y = "Weight_Score",
-                          Z = "Agility_Score",
-                          Theme = theme_bw(), # run ?ggthemes for other themes.
-                          Title = "", # I prefer to use the caption set above.
-                          Ylab = "Height",
-                          Xlab = "Lenght",
-                          LegendTitle = "Agility",
-                          TitleSize = 10,
-                          LabSize = 10)
+# Calculate 6-month, 1-year, and 3-year returns
+rets_6m <- calculate_period_return(Rets, 6) %>% 
+    select(date, Fund, RollingReturn)
+rets_1y <- calculate_period_return(Rets, 12) %>% 
+    select(date, Fund, RollingReturn)
+rets_3y <- calculate_period_return(Rets, 36) %>% 
+    select(date, Fund, RollingReturn)
 
-g
 
-# Although the functions above are really simple, the principle is simple: containing calculations and data wrangling in their own functions will make this template much cleaner and more manageable.
-# When you start working, delete these meaningless functions and replace with your own...
 
 ```
 
-To reference the plot above, add a ``\\label'' after the caption in the chunk heading, as done above. Then reference the plot as such: As can be seen, Figures \ref{Figure1}  and \ref{Figure2} are excellent, with Figure \ref{Figure2} being particularly aesthetically pleasing due to its device setting of Tikz. The nice thing now is that it correctly numbers all your figures (and sections or tables) and will update if it moves. The links are also dynamic.
 
-I very strongly suggest using ggplot2 (ideally in combination with dplyr) using the ggtheme package to change the themes of your figures.
+```{r}
+library(dplyr)
+library(zoo)
+library(kableExtra)
 
-Also note the information that I have placed above the chunks in the code chunks for the figures. You can edit any of these easily - visit the Rmarkdown webpage for more information.
+# Convert date to Date format if not already
+Flows <- Flows %>% 
+  mutate(date = as.Date(date, format = "%Y-%m-%d"))
 
-# Splitting a page
+# Function to calculate rolling sum of flows over a 6-month period
+calculate_rolling_flow_sum <- function(data, months) {
+  data %>% 
+    group_by(Fund) %>%
+    arrange(Fund, date) %>%
+    mutate(RollingFlowSum = rollapply(Flows, width = months, FUN = sum, fill = NA, align = 'right'))
+}
 
-You can also very easily split a page using built-in Pandoc formatting. I comment this out in the code (as this has caused issues building the pdf for some users - which I presume to be a Pandoc issue), but you are welcome to try it out yourself by commenting out the following section in your Rmd file.
-
-
-<!-- :::::: {.columns data-latex="[T]"} -->
-<!-- ::: {.column data-latex="{0.7\textwidth}"} -->
-<!-- ```{r, echo=FALSE, fig.width=4, fig.height=4} -->
-<!-- par(mar = c(4, 4, .2, .1)) -->
-<!-- plot(cars, pch = 19) -->
-<!-- ``` -->
-<!-- ::: -->
-<!-- ::: {.column data-latex="{0.05\textwidth}"} -->
-<!-- \ -->
-<!-- ::: -->
-<!-- ::: {.column data-latex="{0.2\textwidth}"} -->
-<!-- \scriptsize -->
-
-<!-- ## Data {-} -->
-<!-- The figure on the left-hand side shows the `cars` data. -->
-
-<!-- Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do -->
-<!-- eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut -->
-<!-- enim ad minim veniam, quis nostrud exercitation ullamco laboris -->
-<!-- nisi ut aliquip ex ea commodo consequat. -->
-<!-- ::: -->
-<!-- :::::: -->
+# Calculate rolling sum of flows over the last 6 months
+flows_6m <- calculate_rolling_flow_sum(Flows, 6) %>% 
+    select(c(date, Fund, RollingFlowSum))
+flows_1y <- calculate_rolling_flow_sum(Flows, 12) %>% 
+    select(c(date, Fund, RollingFlowSum)) 
+flows_3y <- calculate_rolling_flow_sum(Flows, 24) %>% 
+    select(c(date, Fund, RollingFlowSum)) 
 
 
 
-#  Methodology \label{Meth}
+joined_6m <- inner_join(rets_6m, Flows, by = c('date', 'Fund')) %>% 
+    filter(!is.na(RollingReturn) & !is.na(Flows)) %>% 
+    select(c(-Index, -FoF))
+    
+joined_1y <- inner_join(rets_1y, Flows, by = c('date', 'Fund')) %>% 
+    filter(!is.na(RollingReturn) & !is.na(Flows)) %>% 
+    select(c(-Index, -FoF))
 
-## Subsection
-Ideally do not overuse subsections. It equates to bad writing.^[This is an example of a footnote by the way. Something that should also not be overused.]
-
-## Math section
-
-Equations should be written as such:
-
-\begin{align}
-\beta = \sum_{i = 1}^{\infty}\frac{\alpha^2}{\sigma_{t-1}^2} \label{eq1} \\
-\int_{x = 1}^{\infty}x_{i} = 1 \notag
-\end{align}
-
-If you would like to see the equations as you type in Rmarkdown, use $ symbols instead (see this for yourself by adjusted the equation):
-
-$$
-\beta = \sum_{i = 1}^{\infty}\frac{\alpha^2}{\sigma_{t-1}^2} \\
-\int_{x = 1}^{\infty}x_{i} = 1
-$$
-
-Note the equation above - this should appear in math in Rstudio. Writing nice math requires practice. Note I used a forward slashes to make a space in the equations. I can also align equations using  __\&__, and set to numbering only the first line. Now I will have to type ``begin equation'' which is a native \LaTeX command. Here follows a more complicated equation that you want aligned (using \& sign) and numbered:
+joined_3y <- inner_join(rets_3y, Flows, by = c('date', 'Fund')) %>% 
+    filter(!is.na(RollingReturn) & !is.na(Flows)) %>% 
+    select(c(-Index, -FoF))
 
 
-\begin{align}
-	y_t &= c + B(L) y_{t-1} + e_t   \label{eq2}    \\ \notag
-	e_t &= H_t^{1/2}  z_t ; \quad z_t \sim  N(0,I_N) \quad \& \quad H_t = D_tR_tD_t \\ \notag
-		D_t^2 &= {\sigma_{1,t}, \dots, \sigma_{N,t}}   \\ \notag
-		\sigma_{i,t}^2 &= \gamma_i+\kappa_{i,t}  v_{i, t-1}^2 +\eta_i  \sigma_{i, t-1}^2, \quad \forall i \\ \notag
-		R_{t, i, j} &= {diag(Q_{t, i, j}}^{-1}) . Q_{t, i, j} . diag(Q_{t, i, j}^{-1})  \\ \notag
-		Q_{t, i, j} &= (1-\alpha-\beta)  \bar{Q} + \alpha  z_t  z_t'  + \beta  Q_{t, i, j} \notag
-\end{align}
 
-Note that in \ref{eq2} I have aligned the equations by the equal signs. I also want only one tag, and I create spaces using ``quads''.
+    
+cor_6m <- joined_6m %>%
+  group_by(Fund) %>%
+  mutate(next_Flows = lead(Flows)) %>%
+  filter(!is.na(next_Flows)) %>%
+  summarise(correlation = cor(RollingReturn, next_Flows, use = "complete.obs"))
 
-See if you can figure out how to do complex math using the two examples provided in \ref{eq1} and \ref{eq2}.
+cor_1y <- joined_1y %>%
+  group_by(Fund) %>%
+  mutate(next_Flows = lead(Flows)) %>%
+  filter(!is.na(next_Flows)) %>%
+  summarise(correlation = cor(RollingReturn, next_Flows, use = "complete.obs"))
 
-<!-- $$ -->
-<!-- This is a commented out section in the writing part. -->
-<!-- Comments are created by highlighting text, amnd pressing CTL+C -->
-<!-- \\begin{align} -->
-<!-- \\beta = \\alpha^2 -->
-<!-- \end{align} -->
-<!-- $$ -->
+cor_3y <- joined_3y %>%
+  group_by(Fund) %>%
+  mutate(next_Flows = lead(Flows)) %>%
+  filter(!is.na(next_Flows)) %>%
+  summarise(correlation = cor(RollingReturn, next_Flows, use = "complete.obs"))
 
-# Results
+joined_cor <- left_join(cor_6m, cor_1y, by = "Fund") %>% 
+    left_join(cor_3y, by = 'Fund')
+colnames(joined_cor) <- c("Fund", "cor_6m", "cor_1y", "cor_3y")
 
-Tables can be included as follows. Use the _xtable_ (or kable) package for tables. Table placement = H implies Latex tries to place the table Here, and not on a new page (there are, however, very many ways to skin this cat. Luckily there are many forums online!).
+avg_6m_cor <- mean(cor_6m$correlation, na.rm = T)
+avg_1y_cor <- mean(cor_1y$correlation, na.rm = T)
+avg_3y_cor <- mean(cor_3y$correlation, na.rm = T)
 
 
-```{r ShortTable, results = 'asis'}
 
-library(xtable)
-data <- mtcars[1:5,] %>% tibble::as_tibble()
 
-table <- xtable(data, caption = "Short Table Example \\label{tab1}")
-  print.xtable(table,
-             # tabular.environment = "longtable",
-             floating = TRUE,
-             table.placement = 'H',
-             # scalebox = 0.3,
-             comment = FALSE,
-             caption.placement = 'bottom'
-             )
 
+cor_table <- data.frame(avg_6m_cor, avg_1y_cor, avg_3y_cor)
+colnames(cor_table) <- c('6 Month', '1 Year', '3 Year')
+cor_table
+result <- kable(cor_table)
+result
 ```
 
-To reference calculations __in text__, _do this:_ From table \ref{tab1} we see the average value of mpg is `r mean(mtcars[1:5,]$mpg)`.
+```{r}
+library(fmxdat)
+flow_df <- Flows %>% 
+    group_by(Fund) %>% 
+    summarise(TotalFlows = sum(Flows, na.rm = T))
 
-Including tables that span across pages, use the following (note that I add below the table: ``continue on the next page''). This is a neat way of splitting your table across a page.
+return_df <- Rets %>% 
+    group_by(Fund) %>% 
+    summarise(avgReturn = mean(Returns, na.rm = T))
 
-Use the following default settings to build your own possibly long tables. Note that the following will fit on one page if it can, but cleanly spreads over multiple pages:
+joined_df <- left_join(flow_df, return_df, by = 'Fund') %>% 
+    left_join(joined_cor, by = "Fund")
 
-```{r LongTable, results = 'asis'}
+g1 <- joined_df %>% 
+    arrange(desc(avgReturn)) %>% 
+    slice(1:50) %>% 
+    ggplot(aes(x=TotalFlows, y=cor_6m, size=avgReturn))+
+    geom_point(alpha=0.7, color = "steelblue")+
+    ylim(c(-0.8, 1.3))+
+    scale_size(range = c(3, 15), name="Average Returns")+
+    labs(title = "6 Month Correlation vs Total Flows",
+         x = 'Total Flows',
+         y = '1 Year Correlation')+ 
+    theme_fmx(title.size = ggpts(30), subtitle.size = ggpts(5), caption.size = ggpts(25), CustomCaption = F) + 
+    fmx_cols()
 
-library(xtable)
+finplot(g1)
 
-data = mtcars %>% tibble::as_tibble()
-  addtorow          <- list()
-  addtorow$pos      <- list()
-  addtorow$pos[[1]] <- c(0)
-  addtorow$command  <- c(paste("\\hline \n",
-                               "\\endhead \n",
-                               "\\hline \n",
-                               "{\\footnotesize Continued on next page} \n",
-                               "\\endfoot \n",
-                               "\\endlastfoot \n",sep=""))
-table <- xtable(data, caption = "Long Table Example")
-  print.xtable(table,
-             tabular.environment = "longtable",
-             floating = FALSE, # Leave this as is.
-             table.placement = 'H', # Leave this as is.
-             booktabs = T, # Aesthetics
-             include.rownames = FALSE,  # Typically you don't want this in a table.
-             add.to.row = addtorow, # For adding the Continued on next page part...
-             comment = FALSE,
-             caption.placement = 'top',  # Where do you want the caption?
-             size="\\fontsize{12pt}{13pt}\\selectfont"  # Size of text in table..
-             )
-# See https://cran.r-project.org/web/packages/xtable/vignettes/xtableGallery.pdf for table inspiration
-```
+g2 <- joined_df %>% 
+    arrange(desc(avgReturn)) %>% 
+    slice(1:50) %>% 
+    ggplot(aes(x=TotalFlows, y=cor_1y, size=avgReturn))+
+    geom_point(alpha=0.7, color = "lightsalmon3")+
+    scale_size(range = c(3, 15), name="Average Returns")+
+    labs(title = "1 Year Correlation vs Total Flows",
+         x = 'Total Flows',
+         y = '1 Year Correlation')+ 
+    theme_fmx(title.size = ggpts(30), subtitle.size = ggpts(5), caption.size = ggpts(25), CustomCaption = F) + 
+    fmx_cols()
+finplot(g2)
 
-\hfill
+g3 <- joined_df %>% 
+    arrange(desc(avgReturn)) %>% 
+    slice(1:50) %>% 
+    ggplot(aes(x=TotalFlows, y=cor_3y, size=avgReturn))+
+    geom_point(alpha=0.7, color = "orange")+
+    scale_size(range = c(3, 15), name="Average Returns")+
+    labs(title = "3 Year Correlation vs Total Flows",
+         x = 'Total Flows',
+         y = '1 Year Correlation')+ 
+    theme_fmx(title.size = ggpts(30), subtitle.size = ggpts(5), caption.size = ggpts(25), CustomCaption = F) + 
+    fmx_cols()
+finplot(g3)
 
-<!-- hfill can be used to create a space, like here between text and table. -->
-
-
-## Huxtable
-
-Huxtable is a very nice package for making working with tables between Rmarkdown and Tex easier.
-
-This cost some adjustment to the Tex templates to make it work, but it now works nicely.
-
-See documentation for this package [here](https://hughjonesd.github.io/huxtable/huxtable.html). A particularly nice addition of this package is for making the printing of regression results a joy (see [here](https://hughjonesd.github.io/huxtable/huxtable.html#creating-a-regression-table)). Here follows an example:
-
-
-If you are eager to use huxtable, comment out the Huxtable table in the Rmd template, and uncomment the colortbl package in your Rmd's root.
-
-Note that I do not include this in the ordinary template, as some latex users have complained it breaks when they build their Rmds (especially those using tidytex - I don't have this problem as I have the full Miktex installed on mine). Up to you, but I strongly recommend installing the package manually and using huxtable. To make this work, uncomment the _Adding additional latex packages_ part in yaml at the top of the Rmd file. Then comment out the huxtable example in the template below this line. Reknit, and enjoy.
-
-```{r, results = 'asis'}
-
-if(!require(huxtable)) install.packages(huxtable)
-library(huxtable)
-data(diamonds, package = 'ggplot2')
-Title <- "Regression Output"
-Label <- "Reg01"
-lm1 <- lm(price ~ carat, diamonds)
-lm2 <- lm(price ~ depth, diamonds)
-lm3 <- lm(price ~ carat + depth, diamonds)
-htab <-
-huxreg(lm1, lm2, lm3,
-                statistics = c(N = "nobs", R2 = "r.squared"),
-                note = "%stars%.") %>%
-  set_caption(Title) %>%
-  set_label(Label)
-# More settings:
-font_size(htab) <- 12
-# Let's change regression names: this is slightly hacky, but works. Comment out this section to see what the default looks like:
-  Names <- c( "Reg1", "Reg2", "Reg3")
-  for(i in 1:length(Names)) {
-    htab[1,][[1+i]] <- Names[i]
-  }
-# Now simply call the table:
-htab
 
 ```
-
-FYI - R also recently introduced the gt package, which is worthwhile exploring too.
-
-# Lists
-
-To add lists, simply using the following notation
-
-* This is really simple
-
-    + Just note the spaces here - writing in R you have to sometimes be pedantic about spaces...
-
-* Note that Rmarkdown notation removes the pain of defining \LaTeX environments!
-
-# Conclusion
-
-I hope you find this template useful. Remember, stackoverflow is your friend - use it to find answers to questions. Feel free to write me a mail if you have any questions regarding the use of this package. To cite this package, simply type citation("Texevier") in Rstudio to get the citation for @Texevier (Note that uncited references in your bibtex file will not be included in References).
-
-<!-- Make title of bibliography here: -->
-<!-- \newpage -->
-
-\newpage
-
-# References {-}
-
-<div id="refs"></div>
-
-
-# Appendix {-}
-
-## Appendix A {-}
-
-Some appendix information here
-
-## Appendix B {-}
 
