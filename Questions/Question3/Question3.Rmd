@@ -322,368 +322,250 @@ ZAR <- read_rds("data/Monthly_zar.rds")
 
 
 ```{r}
-# Create portfolio return function
-
-# Sector and Index as input
-# Portfolio returns for both SWIX and ALSI as output
-
-pacman::p_load(tbl2xts, PerformanceAnalytics)
-
-port_ret_func <- function(data = ALSI, sector = "", index = ""){
-    fund <- data
-    
-    if(!sector == ""){
-        fund <- data %>% filter(Sector %in% sector) %>% 
-            group_by(date) %>% 
-            mutate(J403 = J403/sum(J403, na.rm = TRUE), J203 = J203/sum(J203, na.rm = TRUE)) %>% 
-            ungroup()
-    } 
-    if(!index == ""){
-        fund <- data %>% filter(Index_Name %in% index) %>% 
-            group_by(date) %>% 
-            mutate(J403 = J403/sum(J403, na.rm = TRUE), J203 = J203/sum(J203, na.rm = TRUE)) %>% 
-            ungroup()
-    } 
-    if(!sector == "" & !index == ""){
-        fund <- data %>%
-            group_by(date) %>% 
-            mutate(J403 = J403/sum(J403, na.rm = TRUE), J203 = J203/sum(J203, na.rm = TRUE)) %>% 
-            ungroup()
-    }
-    
-    fund_J203_weights <- fund %>% select(date, Tickers, J203) %>% mutate(J203 = coalesce(J203, 0)) %>%
-        spread(Tickers, J203) %>% 
-        tbl_xts()
-    fund_J203_weights[is.na(fund_J203_weights)] <- 0
-    
-    fund_J403_weights <- fund %>% select(date, Tickers, J403) %>% spread(Tickers, J403) %>% tbl_xts()
-    fund_J403_weights[is.na(fund_J403_weights)] <- 0
-    
-    fund_returns <- fund %>% select(date, Tickers, Return) %>% spread(Tickers, Return)
-    fund_returns[is.na(fund_returns)] <- 0
-    fund_returns_xts <- fund_returns %>% tbl_xts()
-    
-    J203_RetPort <- rmsfuns::Safe_Return.portfolio(fund_returns_xts,
-    weights = fund_J203_weights, lag_weights = TRUE,
-    contribution = TRUE, verbose = TRUE,
-    value = 1, geometric = TRUE)
-    
-    J403_RetPort <- rmsfuns::Safe_Return.portfolio(R = fund_returns_xts,
-    weights = fund_J403_weights, lag_weights = TRUE,
-    contribution = TRUE, verbose = TRUE,
-    value = 1000, geometric = TRUE)
-    
-    # Clean and save portfolio returns and weights:
-    J203_Contribution <- J203_RetPort$"contribution" %>% xts_tbl() %>%
-        mutate(date = lag(date), date = coalesce(date, index(fund_J203_weights)[1]) )
-
-    J203_BPWeight <- J203_RetPort$"BOP.Weight" %>% xts_tbl() %>%
-        mutate(date = lag(date), date = coalesce(date, index(fund_J203_weights)[1]) )
-    
-    J203_BPValue <- J203_RetPort$"BOP.Value" %>% xts_tbl() %>% 
-        mutate(date = lag(date), date = coalesce(date, index(fund_J203_weights)[1]) )
-    
-        # Clean and save portfolio returns and weights:
-    J403_Contribution <- J403_RetPort$"contribution" %>% xts_tbl() %>%
-        mutate(date = lag(date), date = coalesce(date, index(fund_J403_weights)[1]) )
-    
-    J403_BPWeight <- J403_RetPort$"BOP.Weight" %>% xts_tbl() %>%
-        mutate(date = lag(date), date = coalesce(date, index(fund_J403_weights)[1]) )
-    
-    J403_BPValue <- J403_RetPort$"BOP.Value" %>% xts_tbl() %>% 
-        mutate(date = lag(date), date = coalesce(date, index(fund_J403_weights)[1]) )
-
-
-names(J203_Contribution) <- c("date", names(J203_RetPort$"contribution"))
-names(J203_BPWeight) <- c("date", names(J203_RetPort$"BOP.Weight"))
-names(J203_BPValue) <- c("date", names(J203_RetPort$"BOP.Value"))
-names(J403_Contribution) <- c("date", names(J403_RetPort$"contribution"))
-names(J403_BPWeight) <- c("date", names(J403_RetPort$"BOP.Weight"))
-names(J403_BPValue) <- c("date", names(J403_RetPort$"BOP.Value"))
-
-# Let's bind all of these together now:
-df_port_return_J203 <-
-left_join(fund %>% select(date, Tickers, Return),
-J203_BPWeight %>% gather(Tickers, weight, -date),
-by = c("date", "Tickers") ) %>%
-left_join(.,
-J203_BPValue %>% gather(Tickers, value_held, -date),
-by = c("date", "Tickers") ) %>%
-left_join(.,
-J203_Contribution %>% gather(Tickers, Contribution, -date),
-by = c("date", "Tickers"))
-
-df_port_return_J403 <-
-left_join(fund %>% select(date, Tickers, Return),
-J403_BPWeight %>% gather(Tickers, weight, -date),
-by = c("date", "Tickers") ) %>%
-left_join(.,
-J403_BPValue %>% gather(Tickers, value_held, -date),
-by = c("date", "Tickers") ) %>%
-left_join(.,
-J403_Contribution %>% gather(Tickers, Contribution, -date),
-by = c("date", "Tickers"))
-
-# Calculate Portfolio Returns:
-df_Portf_J203<- df_port_return_J203 %>% group_by(date) %>% summarise(PortfolioReturn = sum(Return*weight, na.rm = TRUE)) %>% 
-filter(PortfolioReturn != 0)
-# Calculate Portfolio Returns:
-df_Portf_J403 <-
-df_port_return_J403 %>% group_by(date) %>% summarise(PortfolioReturn = sum(Return*weight, na.rm = TRUE)) %>% filter(PortfolioReturn != 0)
-    
-out <- left_join(df_Portf_J203 %>% rename(J203 = PortfolioReturn), 
-                 df_Portf_J403 %>%  rename(J403 = PortfolioReturn), by = "date") %>% 
-    pivot_longer(c("J203", "J403"), names_to = "Meth", values_to = "Returns")
-out
-}
-```
-
-```{r}
 library(fmxdat)
-# Compare Sectors for ALSI and SWIX
 
 sectors <- ALSI %>% pull(Sector) %>% unique()
-sector_ret <- list()
+sectorReturns <- list()
 
 for(i in 1:length(sectors)){
-    # Loop through sectors and calculate returns and cumulative returns
-    sector_ret[[i]] <- port_ret_func(ALSI, sector = sectors[i]) %>% group_by(Meth) %>% 
-    mutate(cumreturn_Rand = (cumprod(1 + 
-    Returns))) %>% # Start at 1
-mutate(cumreturn_Rand = cumreturn_Rand/first(cumreturn_Rand)) %>% 
-    mutate(Sector = sectors[i])
+    sectorReturns[[i]] <- calc_portfolio_returns(ALSI, chosen_sector = sectors[i]) %>% 
+        group_by(Fund) %>% 
+        mutate(CumReturn = (cumprod(1 + Returns))) %>% 
+        mutate(CumReturn = CumReturn/first(CumReturn)) %>% 
+        mutate(Sector = sectors[i])
 }
-# Rename tibbles
-names(sector_ret) <- sectors
-# Combine Dataframes
+names(sectorReturns) <- sectors
 
-sectors_cum_ret <- rbind(sector_ret[[1]],
-                             sector_ret[[2]], 
-                             sector_ret[[3]]) %>% arrange(date)
-    
-q2_p1 <- sectors_cum_ret %>% 
-        ggplot() +
-        geom_line(aes(date, cumreturn_Rand, colour = Meth), alpha = 0.8) + facet_wrap(~Sector) + fmxdat::fmx_cols() + 
-        labs(title = "Cumulative Returns per Sector for ALSI and SWIX", y = "Cumulative Returns", x = "") +
-        fmxdat::theme_fmx(title.size = ggpts(25))
+FullSectors_df <- rbind(sectorReturns[[1]],
+                         sectorReturns[[2]], 
+                         sectorReturns[[3]],
+                         sectorReturns[[4]]) %>% arrange(date)
 
-finplot(q2_p1)
+sector_plot <- ggplot(data = FullSectors_df, aes(x = date, y = CumReturn, group = Fund)) +
+    geom_line(aes(color = Fund)) +
+    geom_ribbon(data = filter(FullSectors_df, Fund == "J203"), aes(ymin = 0, ymax = CumReturn, fill = "J203"), alpha = 0.3) +
+    geom_ribbon(data = filter(FullSectors_df, Fund == "J403"), aes(ymin = 0, ymax = CumReturn, fill = "J403"), alpha = 0.3) +
+    scale_color_manual(values = c("J203" = "blue", "J403" = "red")) +
+    scale_fill_manual(values = c("J203" = "lightblue", "J403" = "pink")) +
+    guides(fill = guide_none()) +
+    scale_x_date(date_labels = "%Y-%m-%d") +
+    labs(title = "Cumulative Returns by Sector", x = "Date", y = "Cumulative Return") +
+    theme_minimal()+
+    facet_wrap(~ Sector, scales = "free_y", ncol = 1)+
+    theme(legend.position = "bottom")
+
+
+
+finplot(sector_plot)
+
+
+
 ```
+
+
 ```{r}
-# Compare indeices for ALSI and SWIX
+# Compare indices for ALSI and SWIX
 
 indices <- ALSI %>%  pull(Index_Name) %>% na.omit(.) %>%  unique()
-indices_ret <- list()
+IndexReturns<- list()
 
 for(i in 1:length(indices)){
-    # Loop through sectors and calculate returns and cumulative returns
-    indices_ret[[i]] <- port_ret_func(ALSI,index = indices[i]) %>% group_by(Meth) %>% 
-    mutate(cumreturn_Rand = (cumprod(1 + 
-    Returns))) %>% # Start at 1
-mutate(cumreturn_Rand = cumreturn_Rand/first(cumreturn_Rand)) %>% 
-    mutate(Index = indices[i])
+    IndexReturns[[i]] <- calc_portfolio_returns(ALSI, chosen_index = indices[i]) %>% 
+        group_by(Fund) %>% 
+        mutate(CumReturn = (cumprod(1 + Returns))) %>% 
+        mutate(CumReturn = CumReturn/first(CumReturn)) %>% 
+        mutate(Index = indices[i])
 }
 # Rename tibbles
-names(indices_ret) <- indices
+names(IndexReturns) <- indices
 # Combine Dataframes
 
-indices_cum_ret <- rbind(indices_ret[[1]],
-                             indices_ret[[2]], 
-                             indices_ret[[3]]) %>% arrange(date)
+FullIndex_df <- rbind(IndexReturns[[1]],
+                      IndexReturns[[2]], 
+                      IndexReturns[[3]]) %>% arrange(date)
     
-q2_p2 <- indices_cum_ret %>% 
-        ggplot() +
-        geom_line(aes(date, cumreturn_Rand, colour = Meth), alpha = 0.8) + facet_wrap(~Index) + fmxdat::fmx_cols() + 
-        labs(title = "Cumulative Returns per Index for ALSI and SWIX", y = "Cumulative Returns", x = "") +
-        fmxdat::theme_fmx(title.size = ggpts(25))
+index_plot <- ggplot(data = FullIndex_df, aes(x = date, y = CumReturn, group = Fund)) +
+    geom_line(aes(color = Fund)) +
+    geom_ribbon(data = filter(FullIndex_df, Fund == "J203"), aes(ymin = 0, ymax = CumReturn, fill = "J203"), alpha = 0.3) +
+    geom_ribbon(data = filter(FullIndex_df, Fund == "J403"), aes(ymin = 0, ymax = CumReturn, fill = "J403"), alpha = 0.3) +
+    scale_color_manual(values = c("J203" = "blue", "J403" = "red")) +
+    scale_fill_manual(values = c("J203" = "lightblue", "J403" = "pink")) +
+    guides(fill = guide_none()) +
+    scale_x_date(date_labels = "%Y-%m-%d") +
+    labs(title = "Cumulative Returns by Sector", x = "Date", y = "Cumulative Return") +
+    theme_minimal()+
+    facet_wrap(~ Index, scales = "free_y", ncol = 1)+
+    theme(legend.position = "bottom")
 
-finplot(q2_p2)
+finplot(index_plot)
 ```
-```{r}
-# Construct Capped Portfolio and Determine Performance for ALSI
+## Stratification
 
-reb_ALSI <- ALSI %>% 
-filter(date %in% RebDays$date) %>% 
-# Now we have to distinguish rebalances - to create something
-# to group by:
-mutate(RebalanceTime = format(date, "%Y%B")) %>% 
+```{r}
+ZAR_returns <- ZAR %>% 
+    filter(date > '2013-01-02') %>% #Filter for ZAR data after ALSI data start date
+    mutate(Return = value/lag(value)-1) %>% 
+    filter(date > first(date)) %>% 
+    select(c(date, Return))
+
+
+ZAR_sd <- ZAR_returns %>% 
+    mutate(Year = format(date, '%Y')) %>% 
+    group_by(Year) %>% 
+    summarise(SD = sd(Return)*sqrt(12)) %>% 
+  
+    mutate(TopQuantile = quantile(SD, 0.8), BotQuantile = quantile(SD, 0.2))
+
+Hi_Vol <- ZAR_sd %>%  filter(SD > TopQuantile) %>% pull(Year)
+Low_Vol <- ZAR_sd %>%  filter(SD < BotQuantile) %>% pull(Year)
+
+
+ReturnsDF <- port_ret_func(ALSI) %>% 
+    group_by(Index) %>% 
+    mutate(Year= format(date, "%Y")) %>% 
+    rename(Tickers = Index, Return = Returns) %>% 
+    group_by(Tickers) %>% 
+    mutate(Top = quantile(Return, 0.99), Bot = quantile(Return, 0.01)) %>% 
+    mutate(Return = ifelse(Return > Top, Top, 
+                         ifelse(Return < Bot, Bot, Return))) %>% ungroup()
+
+perf_hi <- Perf_comparisons(ReturnsDF, Ys = Hi_Vol, Alias = "High_Vol")
+perf_lo <- Perf_comparisons(ReturnsDF, Ys = Low_Vol, Alias = "Low_Vol")
+
+library(kableExtra)
+RatioTable_High <- kable(perf_hi)
+RatioTable_Low <- kable(perf_lo)
+RatioTable_High
+RatioTable_Low
+```
+
+
+
+```{r}
+
+RebDays <- RebDays %>% 
+    filter(Date_Type == 'Reb Trade Day')
+
+calculate_capped_port <- function(dataframe, W_cap, ColName) {
+    # Assuming the necessary libraries are loaded and the Proportional_Cap_Foo function is defined
+    # dataframe <- rebalance_ALSI
+    # W_cap <- 0.1
+    Capped_df <- dataframe %>% 
+        group_split(RebalanceTime) %>% 
+        map_df(~Proportional_Cap_Foo(., W_Cap = W_cap)) %>% 
+        select(-RebalanceTime)
+
+    df_weights <- Capped_df %>% 
+        tbl_xts(cols_to_xts = weight, spread_by = Tickers)
+
+    df_returns <- dataframe %>% 
+        filter(Tickers %in% unique(Capped_df$Tickers)) %>% 
+        tbl_xts(cols_to_xts = Return, spread_by = Tickers)
+
+    # Corrected variable names from your original code
+    df_weights[is.na(df_weights)] <- 0
+    df_returns[is.na(df_returns)] <- 0
+
+    df_capped <- rmsfuns::Safe_Return.portfolio(R = df_returns, 
+                                                  weights = df_weights, 
+                                                  lag_weights = TRUE) %>% 
+        xts_tbl()
+    
+    colnames(df_capped) <- c('date', ColName)
+
+    return(df_capped)
+}
+
+### ALSI
+rebalance_ALSI <- ALSI %>% 
+    filter(date %in% RebDays$date) %>% 
+    mutate(RebalanceTime = format(date, "%Y%B")) %>% 
     select(date, Tickers, Return, J203, RebalanceTime) %>% 
     rename(weight = J203) %>% 
     mutate(weight = coalesce(weight , 0))
 
-## Uncomment for stepping through function:
-# df_Cons <- rebalance_col %>% filter(date == first(date))
-# W_Cap = 0.08
+ALSI_capped_10 <- calculate_capped_port(rebalance_ALSI, 0.1, 'ALSI_10')
+ALSI_capped_5 <- calculate_capped_port(rebalance_ALSI, 0.05, "ALSI_5")
 
-Proportional_Cap_Foo <- function(df_Cons, W_Cap = 0.08){
-  
-  # Let's require a specific form from the user... Alerting when it does not adhere this form
-  if( !"weight" %in% names(df_Cons)) stop("... for Calc capping to work, provide weight column called 'weight'")
-  
-  if( !"date" %in% names(df_Cons)) stop("... for Calc capping to work, provide date column called 'date'")
-  
-  if( !"Tickers" %in% names(df_Cons)) stop("... for Calc capping to work, provide id column called 'Tickers'")
+ALSI_10_rollrets <- ALSI_capped_10 %>% 
+    mutate(RollRets_ALSI_10 = RcppRoll::roll_prod(1 + ALSI_10, 4, fill = NA, align = "right")^(4/12)-1) %>% 
+    group_by(date) %>% 
+    filter(any(!is.na(RollRets_ALSI_10))) %>% 
+    ungroup() %>% 
+    select(date, RollRets_ALSI_10)
 
-  # First identify the cap breachers...
-  Breachers <- 
-    df_Cons %>% filter(weight > W_Cap) %>% pull(Tickers)
-  
-  # Now keep track of breachers, and add to it to ensure they remain at 10%:
-  if(length(Breachers) > 0) {
-    
-    while( df_Cons %>% filter(weight > W_Cap) %>% nrow() > 0 ) {
-      
-      
-      df_Cons <-
-        
-        bind_rows(
-          
-          df_Cons %>% filter(Tickers %in% Breachers) %>% mutate(weight = W_Cap),
-          
-          df_Cons %>% filter(!Tickers %in% Breachers) %>% 
-            mutate(weight = (weight / sum(weight, na.rm=T)) * (1-length(Breachers)*W_Cap) )
-          
-        )
-      
-      Breachers <- c(Breachers, df_Cons %>% filter(weight > W_Cap) %>% pull(Tickers))
-      
-    }
+ALSI_5_rollrets <- ALSI_capped_5 %>% 
+    mutate(RollRets_ALSI_5 = RcppRoll::roll_prod(1 + ALSI_5, 4, fill = NA, align = "right")^(4/12)-1) %>% 
+    group_by(date) %>% 
+    filter(any(!is.na(RollRets_ALSI_5))) %>% 
+    ungroup() %>% 
+    select(date, RollRets_ALSI_5)
 
-    if( sum(df_Cons$weight, na.rm=T) > 1.1 | sum(df_Cons$weight, na.rm=T) < 0.9 | max(df_Cons$weight, na.rm = T) > W_Cap) {
-      
-      stop( glue::glue("For the Generic weight trimming function used: the weight trimming causes non unit 
-      summation of weights for date: {unique(df_Cons$date)}...\n
-      The restriction could be too low or some dates have extreme concentrations...") )
-      
-    }
-    
-  } else {
-    
-  }
-  
-  df_Cons
-  
-  }
-  
-# Apply Proportional_Cap_Foo to ALSI to get capped return for cap of 10%
-Capped_df <- 
-reb_ALSI %>% 
-group_split(RebalanceTime) %>% 
-map_df(~Proportional_Cap_Foo(., W_Cap = 0.1) ) %>% select(-RebalanceTime)
- 
-ALSI_wts <- Capped_df %>% tbl_xts(cols_to_xts = weight, spread_by = Tickers)
 
-ALSI_rts <- ALSI %>% 
-filter(Tickers %in% unique(Capped_df$Tickers)) %>% 
-tbl_xts(cols_to_xts = Return, spread_by = Tickers)
 
-ALSI_wts[is.na(ALSI_wts)] <- 0
-
-ALSI_rts[is.na(ALSI_rts)] <- 0
-
-ALSI_capped <- rmsfuns::Safe_Return.portfolio(R = ALSI_rts, weights = ALSI_wts, 
-    lag_weights = T) %>% 
-xts_tbl() %>% 
-rename(ALSI = portfolio.returns)
-
-# Construct Capped Portfolio and Determine Performance for SWIX
-
-reb_SWIX <- ALSI %>% 
-filter(date %in% RebDays$date) %>% 
-mutate(RebalanceTime = format(date, "%Y%B")) %>% 
+###SWIX
+rebalance_SWIX <- ALSI %>% 
+    filter(date %in% RebDays$date) %>% 
+    mutate(RebalanceTime = format(date, "%Y%B")) %>% 
     select(date, Tickers, Return, J403, RebalanceTime) %>% 
     rename(weight = J403) %>% 
     mutate(weight = coalesce(weight , 0))
   
-# Apply Proportional_Cap_Foo to ALSI to get capped return for cap of 6%
-Capped_df <- 
-reb_SWIX %>% 
-group_split(RebalanceTime) %>% 
-map_df(~Proportional_Cap_Foo(., W_Cap = 0.06) ) %>% select(-RebalanceTime)
- 
-SWIX_wts <- Capped_df %>% tbl_xts(cols_to_xts = weight, spread_by = Tickers)
+SWIX_capped_10 <- calculate_capped_port(rebalance_SWIX, 0.1, 'SWIX_10')
+SWIX_capped_5 <- calculate_capped_port(rebalance_SWIX, 0.05, 'SWIX_5')
 
-SWIX_rts <- ALSI %>% 
-filter(Tickers %in% unique(Capped_df$Tickers)) %>% 
-tbl_xts(cols_to_xts = Return, spread_by = Tickers)
+SWIX_10_rollrets <- SWIX_capped_10 %>% 
+    mutate(RollRets_SWIX_10 = RcppRoll::roll_prod(1 + SWIX_10, 4, fill = NA, align = "right")^(4/12)-1) %>% 
+    group_by(date) %>% 
+    filter(any(!is.na(RollRets_SWIX_10))) %>% 
+    ungroup() %>% 
+    select(date, RollRets_SWIX_10)
 
-SWIX_wts[is.na(SWIX_wts)] <- 0
-
-SWIX_rts[is.na(SWIX_rts)] <- 0
-
-SWIX_capped <- rmsfuns::Safe_Return.portfolio(R = SWIX_rts, weights = SWIX_wts, 
-    lag_weights = T) %>% 
-xts_tbl() %>% 
-rename(SWIX = portfolio.returns)
+SWIX_5_rollrets <- SWIX_capped_5 %>% 
+    mutate(RollRets_SWIX_5 = RcppRoll::roll_prod(1 + SWIX_5, 4, fill = NA, align = "right")^(4/12)-1) %>% 
+    group_by(date) %>% 
+    filter(any(!is.na(RollRets_SWIX_5))) %>% 
+    ungroup() %>% 
+    select(date, RollRets_SWIX_5)
 
 
-# Combine and Plot Performance
+cap5_df <- left_join(ALSI_5_rollrets, SWIX_5_rollrets, by = 'date')
+plotdf_5 <- cap5_df %>% 
+    pivot_longer(-date,
+                 names_to = 'Fund',
+                 values_to = 'RollRet')
 
-capped_indices <- left_join(ALSI_capped, SWIX_capped, by = "date") %>% 
-    pivot_longer(c("ALSI", "SWIX"), names_to = "Meth", values_to = "returns")
+cap10_df <- left_join(ALSI_10_rollrets, SWIX_10_rollrets, by = 'date')
+plotdf_10 <- cap10_df %>% 
+    pivot_longer(-date,
+                 names_to = 'Fund',
+                 values_to = 'RollRet')
 
-# Calculate Uncapped Return for ALSI
-ALSI_wts <- ALSI %>% 
-filter(date %in% RebDays$date) %>% 
-mutate(RebalanceTime = format(date, "%Y%B")) %>% 
-    rename(weight = J203) %>% 
-    mutate(weight = coalesce(weight , 0)) %>% 
-    select(date, Tickers, Return, weight, RebalanceTime) %>% 
-     tbl_xts(cols_to_xts = weight, spread_by = Tickers)
+g <- plotdf_5 %>% 
+    ggplot() + 
+    geom_line(aes(date, RollRet, color = Fund), alpha = 0.7, size = 1.25) + 
+    labs(title = "Rolling 3 Year Annualized Returns SWIX vs ALSI (5% cap)", 
+        subtitle = "", x = "", y = "Rolling 3 year Returns (Ann.)", 
+        caption = "") + 
+    theme_fmx(title.size = ggpts(30), subtitle.size = ggpts(5), caption.size = ggpts(25), CustomCaption = F) + 
+    fmx_cols()+
+    scale_fill_brewer(palette = "Accent") 
 
-ALSI_wts[is.na(ALSI_wts)] <- 0
+finplot(g, x.date.dist = "1 year", x.date.type = "%Y", x.vert = T, 
+    y.pct = T, y.pct_acc = 1)
 
-ALSI_rts[is.na(ALSI_rts)] <- 0
+g2 <- plotdf_10 %>% 
+    ggplot() + 
+    geom_line(aes(date, RollRet, color = Fund), alpha = 0.7, size = 1.25) + 
+    labs(title = "Rolling 3 Year Annualized Returns SWIX vs ALSI (10% cap)", 
+        subtitle = "", x = "", y = "Rolling 3 year Returns (Ann.)", 
+        caption = "") + 
+    theme_fmx(title.size = ggpts(30), subtitle.size = ggpts(5), caption.size = ggpts(25), CustomCaption = F) + 
+    fmx_cols()+
+    scale_fill_brewer(palette = "Accent") 
 
-ALSI_capped <- rmsfuns::Safe_Return.portfolio(R = ALSI_rts, weights = ALSI_wts, 
-    lag_weights = T) %>% 
-xts_tbl() %>% 
-rename(ALSI = portfolio.returns)
+finplot(g2, x.date.dist = "1 year", x.date.type = "%Y", x.vert = T, 
+    y.pct = T, y.pct_acc = 1)
 
-# Calculate Uncapped Return for SWIX
- 
-SWIX_wts <- ALSI %>% 
-filter(date %in% RebDays$date) %>% 
-mutate(RebalanceTime = format(date, "%Y%B")) %>% 
-    rename(weight = J403) %>% 
-    mutate(weight = coalesce(weight , 0)) %>% 
-    select(date, Tickers, Return, weight, RebalanceTime) %>% 
-     tbl_xts(cols_to_xts = weight, spread_by = Tickers)
-
-SWIX_wts[is.na(SWIX_wts)] <- 0
-
-SWIX_rts[is.na(SWIX_rts)] <- 0
-
-SWIX_capped <- rmsfuns::Safe_Return.portfolio(R = SWIX_rts, weights = SWIX_wts, 
-    lag_weights = T) %>% 
-xts_tbl() %>% 
-rename(SWIX = portfolio.returns)
-
-# Combine and Plot
-
-ALSI_SWIX <- left_join(ALSI_capped, SWIX_capped, by = "date") %>% 
-    pivot_longer(c("ALSI", "SWIX"), names_to = "Meth", values_to = "Returns")
-
-q2_p3 <- capped_indices %>% 
-    group_by(Meth) %>%
-    mutate(Idx = cumprod(1 + returns)) %>% 
-ggplot() + 
-geom_line(aes(date, Idx, colour = Meth), alpha = 0.8) + 
-labs(subtitle = "ALSI capped at 10% and SWIX at 6%", 
-    x = "", y = "Cumulative Return") + 
-    fmx_cols() + 
-fmxdat::theme_fmx(subtitle.size = ggpts(20))
-
-q2_p4 <- ALSI_SWIX %>% 
-    group_by(Meth) %>%
-    mutate(Idx = cumprod(1 + Returns)) %>% 
-ggplot() + 
-geom_line(aes(date, Idx, colour = Meth), alpha = 0.8) + 
-labs(subtitle = "Uncapped Index Calculation for ALSI and SWIX", 
-    x = "", y = "Cumulative Return") + 
-    fmx_cols() + 
-fmxdat::theme_fmx(subtitle.size = ggpts(20))
-
-plot_grid(finplot(q2_p3), finplot(q2_p4), labels = list(title = "Comparing Capped and Uncapped returns of ALSI and SWIX"), label_size = ggpts(30), align = "h")
 ```
 
