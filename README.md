@@ -1,18 +1,21 @@
-# Purpose
+# Purpose and Structure
 
-Purpose of this work folder.
+The purpose of this repository is to host my Financial Econometrics 871
+Practical Exam.
 
-Ideally store a minimum working example data set in data folder.
-
-Add binary files in bin, and closed R functions in code. Human Readable
-settings files (e.g. csv) should be placed in settings/
+This README contains the code for wrangling for and plotting. Functions
+are contained within scripts in the code folders of the corresponding
+questions. The logic and code is explained throughout. After each
+output, an interpretation is given. For the same interpretations, in a
+more formal setting, see the pdf files in each question folder.
 
 ## Question 1
 
 This question investigates returns from an AI Fund, a market benchmark
 (CAPPED SWIX) and active managers. It aims to shed light on the
 differences and similarity in return structures through various
-visualisation techniques.
+visualisation techniques. The powerpoint is in the Question 1 folder, as
+the data folder is “gitignored”
 
 In terms of data preparation, I calculate the average returns for both
 ASISA and the benchmark across all funds and tickers. I then join these
@@ -1091,6 +1094,308 @@ past successes don’t predict future winners. The average returns of a
 fund also don’t seem to have an effect. It it did we would see all the
 large points gather at either the top or bottom of the graph. This
 result holds for the 6 month, 1 year and 3 year correlations.
+
+# Question 5
+
+This question investigates the Rand’s notorious volatility. To this I
+first fit a univariate GARCH in order to investigate the structural
+volatility of the Rand. I then compare it with other highly volatile
+currencies. Finally, I fit a multivariate GARCH between the Rand and a
+G10 currency basket. It appears that, although the Rand is volatile, it
+is far from the most volatile currency.
+
+This code chunk handles the data loading and preparation
+
+``` r
+cncy <- read_rds("data/currencies.rds")
+cncy_Carry <- read_rds("data/cncy_Carry.rds")
+cncy_value <- read_rds("data/cncy_value.rds")
+cncyIV <- read_rds("data/cncyIV.rds")
+bbdxy <- read_rds("data/bbdxy.rds")
+
+#Get currency returns
+cncy_ret <- cncy %>% 
+    group_by(Name) %>% 
+    mutate(Returns = Price/lag(Price) - 1) %>% 
+    filter(date > dplyr::first(date)) %>% 
+    mutate(Name = gsub("\\_Cncy", "", Name)) %>% 
+    mutate(Name = gsub("\\_Inv", "", Name)) 
+
+#Filter for South Africa and convert to xts
+sa_cncy <- cncy_ret %>% 
+    filter(Name == 'SouthAfrica') %>% 
+    select(c(date, Returns))
+```
+
+    ## Adding missing grouping variables: `Name`
+
+``` r
+sa_cncy_2 <- sa_cncy[,2:3]   
+sa_xts_returns <- tbl_xts(sa_cncy_2)
+```
+
+Next I specifiy a univariate GARCH and fit that to the Rand returns
+data.
+
+``` r
+garch1 <- ugarchspec(
+    variance.model = list(model = c("sGARCH","gjrGARCH","eGARCH","fGARCH","apARCH")[1], 
+    garchOrder = c(1, 1)), 
+    mean.model = list(armaOrder = c(1, 0), include.mean = TRUE), 
+    distribution.model = c("norm", "snorm", "std", "sstd", "ged", "sged", "nig", "ghyp", "jsu")[1])
+
+
+garchfit1 = ugarchfit(spec = garch1,data = sa_xts_returns) 
+
+sigma <- sigma(garchfit1) %>% xts_tbl() 
+colnames(sigma) <- c("date", "sigma") 
+sigma <- sigma %>% mutate(date = as.Date(date))
+
+plot(garchfit1, which = 3)
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-30-1.png)
+
+The plot above shows the structural volatility of the Rand compared to
+the noise.
+
+Next I calculate the volatilities of all currencies in the data set and
+select the top 10.
+
+``` r
+sd_df <- cncy_ret %>% 
+    group_by(Name) %>% 
+    summarise(SD = sd(Returns)) %>% 
+    arrange(desc(SD)) %>% 
+    head(10)
+
+top10 <- unique(sd_df$Name)
+
+library(kableExtra)
+VolatilityTable <- kable(sd_df)
+VolatilityTable
+```
+
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+Name
+</th>
+<th style="text-align:right;">
+SD
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Nigeria
+</td>
+<td style="text-align:right;">
+0.0382584
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Romania
+</td>
+<td style="text-align:right;">
+0.0328795
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Bulgaria
+</td>
+<td style="text-align:right;">
+0.0169528
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Zambia
+</td>
+<td style="text-align:right;">
+0.0144492
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Ghana
+</td>
+<td style="text-align:right;">
+0.0132018
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Russia
+</td>
+<td style="text-align:right;">
+0.0123983
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Brazil
+</td>
+<td style="text-align:right;">
+0.0122549
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Turkey
+</td>
+<td style="text-align:right;">
+0.0121950
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Argentina
+</td>
+<td style="text-align:right;">
+0.0104157
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+SouthAfrica
+</td>
+<td style="text-align:right;">
+0.0095090
+</td>
+</tr>
+</tbody>
+</table>
+
+The table above shows the top 10 most volatile currencies ranked. South
+Africa is ranked 10th. While not the most volatile, it is certainly
+high, considering we have 41 currencies in the dataset. Nigeria takes
+the top spot with a SD of 0.0383.
+
+I extract the top 10 most volatile currencies and their returns. By
+using ‘map()’ I am able to calculate univariate GARCHES for all of these
+currencies. I then combine these into a dataframe and plot.
+
+``` r
+top10_returns <- cncy_ret %>% 
+    filter(Name %in% top10) %>% 
+    select(c(date, Name, Returns))
+
+
+garches <- top10_returns %>%
+  group_by(Name) %>%
+  group_split() %>%  # Split the data into a list of data frames, one for each group
+  map(~ {
+    data_xts = xts(.x$Returns, order.by = as.Date(.x$date))
+    ugarchfit(spec = garch1, data = data_xts)
+  })
+
+
+sigma_list <- map(garches, ~ data.frame(Date = index(sigma(.x)), Sigma = sigma(.x)))
+
+# Optional: Add a column for the 'Name' identifier
+names_list <- top10_returns$Name %>% unique()
+sigma_df <- map2_df(sigma_list, names_list, ~ mutate(.x, Name = .y))
+
+# View the combined data frame
+g1 <- ggplot(sigma_df, aes(x = Date, y = Sigma, color = Name)) +
+  geom_line() +
+  ylim(c(0,0.2))+
+  labs(title = "Conditional Standard Deviations Over Time",
+       x = "Date",
+       y = "Sigma",
+       color = "Group") +
+  theme_fmx() +
+  theme(legend.position = "bottom")
+finplot(g1)
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-32-1.png)
+
+The plot above shows the conditional standard deviations over time for
+the top 10 most volatile countries. What is immediately apparent is that
+every currency experience volatility spikes. However, these spikes occur
+at different times for different countries, indicating that the
+structural volatilities don’t tend to follow each other.
+
+In the chunk below I calculate the returns for a basket of G10
+currencies. I then join this with the returns on the Rand. I the fit a
+multivariate DCC GARCH and plot the dynamic conditional correlation.
+
+``` r
+DBHVG10U<- cncy_Carry %>% 
+    filter(Name == "DBHVG10U") %>% 
+    mutate(g10_Return = Price/lag(Price)-1) %>% 
+    filter(date > dplyr::first(date)) %>% 
+    select(c(date, g10_Return))
+
+joined_df <- left_join(DBHVG10U, sa_cncy_2, by = 'date') %>% 
+    rename(sa_xts_returns = 'Returns')  %>% 
+    tbl_xts()
+    
+DCCPre <- dccPre(joined_df, include.mean = T, p = 0)
+```
+
+    ## Sample mean of the returns:  7.9159e-05 0.0001874877 
+    ## Component:  1 
+    ## Estimates:  0 0.149704 0.873896 
+    ## se.coef  :  0 0.009268 0.006297 
+    ## t-value  :  0.016086 16.15231 138.7861 
+    ## Component:  2 
+    ## Estimates:  2e-06 0.069454 0.918007 
+    ## se.coef  :  0 0.006724 0.008132 
+    ## t-value  :  4.480019 10.32997 112.8907
+
+``` r
+StdRes <- DCCPre$sresi
+DCC <- dccFit(StdRes, type="Engle")
+```
+
+    ## Estimates:  0.95 0.03294096 7.796205 
+    ## st.errors:  NaN NaN 0.4423782 
+    ## t-values:   NaN NaN 17.6234
+
+``` r
+Rhot <- DCC$rho.t
+
+dateVector <- xts_tbl(joined_df)
+dateVector <- dateVector %>% 
+    select(date)
+plotting_df <- cbind(dateVector, Rhot[,2]) 
+colnames(plotting_df)<- c('date', 'Rhot')
+
+g2 <- ggplot(plotting_df, aes(x=date, y=Rhot))+
+    geom_line(color = "blue")+
+    labs(title = 'Dynamic Conditional Correlations: ZAR & G10',
+         y= 'rho',
+         x= 'Date')+
+    theme_hc()
+g2
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-33-1.png)
+
+The plot above shows the dynamic conditional correlation of the ZAR and
+the G10 basket.
+
+``` r
+#Attempted this - can't get it to work
+
+# top4_and_SA <- c("Nigeria", "Romania", "Bulgaria", "Zambia", "SouthAfrica")
+# multivariateDF <- cncy_ret %>% 
+#     filter(Name %in% top4_and_SA) %>%
+#     select(c(date, Name, Returns)) %>% 
+#     pivot_wider(names_from = Name,
+#                 values_from = Returns) %>%
+#     filter(complete.cases(.)) %>% 
+#     tbl_xts()
+# 
+# DCCPre <- dccPre(multivariateDF, include.mean = T, p = 0)
+```
 
 # Question 6
 

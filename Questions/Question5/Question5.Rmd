@@ -3,7 +3,7 @@
 # Remove comments and add values where applicable.
 # The descriptions below should be self-explanatory
 
-title: "Helping You Write Academic Papers in R using Texevier"
+title: "Question 5: Volatility Modelling"
 #subtitle: "This will appear as Right Header"
 
 documentclass: "elsarticle"
@@ -25,31 +25,31 @@ Thesis_FP: FALSE
 # --------- Front Page
 # Comment: ----- Follow this pattern for up to 5 authors
 AddTitle: TRUE # Use FALSE when submitting to peer reviewed platform. This will remove author names.
-Author1: "Jane Doe^[__Contributions:__  \\newline _The authors would like to thank no institution for money donated to this project. Thank you sincerely._]"  # First Author - note the thanks message displayed as an italic footnote of first page.
-Ref1: "Some Institution, Cape Town, South Africa" # First Author's Affiliation
-Email1: "nfkatzke\\@gmail.com" # First Author's Email address
+Author1: "Ruan Geldenhuys"  # First Author - note the thanks message displayed as an italic footnote of first page.
+Ref1: "Stellenbosch University, Stellenbosch, South Africa" # First Author's Affiliation
+Email1: "22550801\\@sun.ac.za" # First Author's Email address
 
-Author2: "John Smith"
-Ref2: "Some other Institution, Cape Town, South Africa"
-Email2: "John\\@gmail.com"
-CommonAffiliation_12: TRUE # If Author 1 and 2 have a common affiliation. Works with _13, _23, etc.
-
-Author3: "John Doe"
-Email3: "Joe\\@gmail.com"
-
-CorrespAuthor_1: TRUE  # If corresponding author is author 3, e.g., use CorrespAuthor_3: TRUE
+# Author2: "John Smith"
+# Ref2: "Some other Institution, Cape Town, South Africa"
+# Email2: "John\\@gmail.com"
+# CommonAffiliation_12: TRUE # If Author 1 and 2 have a common affiliation. Works with _13, _23, etc.
+# 
+# Author3: "John Doe"
+# Email3: "Joe\\@gmail.com"
+# 
+# CorrespAuthor_1: TRUE  # If corresponding author is author 3, e.g., use CorrespAuthor_3: TRUE
 
 # Comment out below to remove both. JEL Codes only given if keywords also given.
-keywords: "Multivariate GARCH \\sep Kalman Filter \\sep Copula" # Use \\sep to separate
-JELCodes: "L250 \\sep L100"
+# keywords: "Multivariate GARCH \\sep Kalman Filter \\sep Copula" # Use \\sep to separate
+# JELCodes: "L250 \\sep L100"
 
 # ----- Manage headers and footers:
 #BottomLFooter: $Title$
 #BottomCFooter:
 #TopLHeader: \leftmark # Adds section name at topleft. Remove comment to add it.
-BottomRFooter: "\\footnotesize Page \\thepage" # Add a '#' before this line to remove footer.
-addtoprule: TRUE
-addfootrule: TRUE               # Use if footers added. Add '#' to remove line.
+# BottomRFooter: "\\footnotesize Page \\thepage" # Add a '#' before this line to remove footer.
+# addtoprule: TRUE
+# addfootrule: TRUE               # Use if footers added. Add '#' to remove line.
 
 # --------- page margins:
 margin: 2.3 # Sides
@@ -74,7 +74,7 @@ csl: Tex/harvard-stellenbosch-university.csl # referencing format used.
 
 # ---------- General:
 RemovePreprintSubmittedTo: TRUE  # Removes the 'preprint submitted to...' at bottom of titlepage
-Journal: "Journal of Finance"   # Journal that the paper will be submitting to, if RemovePreprintSubmittedTo is set to TRUE.
+#Journal: "Journal of Finance"   # Journal that the paper will be submitting to, if RemovePreprintSubmittedTo is set to TRUE.
 toc: FALSE                       # Add a table of contents
 numbersections: TRUE             # Should sections (and thus figures and tables) be numbered?
 fontsize: 11pt                  # Set fontsize
@@ -91,8 +91,8 @@ output:
     template: Tex/TexDefault.txt
     fig_width: 3.5 # Adjust default figure sizes. This can also be done in the chunks of the text.
     fig_height: 3.5
-abstract: |
-  Abstract to be written here. The abstract should not be too long and should provide the reader with a good understanding what you are writing about. Academic papers are not like novels where you keep the reader in suspense. To be effective in getting others to read your paper, be as open and concise about your findings here as possible. Ideally, upon reading your abstract, the reader should feel he / she must read your paper in entirety.
+#abstract: |
+  
 ---
 
 <!-- First: Set your default preferences for chunk options: -->
@@ -115,6 +115,10 @@ pacman::p_load("tidyverse", "devtools", "rugarch", "rmgarch",
     "ggthemes")
 
 ```
+
+# Introduction
+
+This question investigates the Rand's notorious volatility. To this I first fit a univariate GARCH in order to investigate the structural volatility of the Rand. I then compare it with other highly volatile currencies. Finally, I fit a multivariate GARCH between the Rand and a G10 currency basket. It appears that, although the Rand is volatile, it is far from the most volatile currency.
 
 ```{r}
 cncy <- read_rds("data/currencies.rds")
@@ -153,7 +157,7 @@ garch1 <- ugarchspec(
 garchfit1 = ugarchfit(spec = garch1,data = sa_xts_returns) 
 ```
 
-```{r}
+```{r Figure1,  warning =  FALSE, fig.align = 'center', fig.cap = "Conditional SD of Rand", fig.ext = 'png', fig.height = 3, fig.width = 6}
 
 sigma <- sigma(garchfit1) %>% xts_tbl() 
 colnames(sigma) <- c("date", "sigma") 
@@ -162,6 +166,8 @@ sigma <- sigma %>% mutate(date = as.Date(date))
 plot(garchfit1, which = 3)
 
 ```
+
+The plot above shows the structural volatility of the Rand compared to the noise.
 
 ```{r}
 sd_df <- cncy_ret %>% 
@@ -177,9 +183,10 @@ VolatilityTable <- kable(sd_df)
 VolatilityTable
 ```
 
-The table above shows the 10 most volatile currencies. The South African Rand is shown to be the 10th most volatile currency in the dataset.
+The table above shows the top 10 most volatile currencies ranked. South Africa is ranked 10th. While not the most volatile, it is certainly high, considering we have 41 currencies in the dataset. Nigeria takes the top spot with a SD of 0.0383.
 
-```{r}
+
+```{r Figure2,  warning =  FALSE, fig.align = 'center', fig.cap = "Conditional Standard Deviations Over Time", fig.ext = 'png', fig.height = 3, fig.width = 6}
 top10_returns <- cncy_ret %>% 
     filter(Name %in% top10) %>% 
     select(c(date, Name, Returns))
@@ -213,7 +220,9 @@ g1 <- ggplot(sigma_df, aes(x = Date, y = Sigma, color = Name)) +
 finplot(g1)
 ```
 
-```{r}
+The plot above shows the conditional standard deviations over time for the top 10 most volatile countries. What is immediately apparent is that every currency experience volatility spikes. However, these spikes occur at different times for different countries, indicating that the structural volatilities don't tend to follow each other.
+
+```{r Figure3,  warning =  FALSE, fig.align = 'center', fig.cap = "Dynamic Conditional Correlations: ZAR and G10", fig.ext = 'png', fig.height = 3, fig.width = 6}
 DBHVG10U<- cncy_Carry %>% 
     filter(Name == "DBHVG10U") %>% 
     mutate(g10_Return = Price/lag(Price)-1) %>% 
@@ -245,7 +254,7 @@ g2 <- ggplot(plotting_df, aes(x=date, y=Rhot))+
 g2
 
 ```
-
+The plot above shows the dynamic conditional correlation of the ZAR and the G10 basket. 
 
 ```{r}
 #Attempted this - cant get it to work
