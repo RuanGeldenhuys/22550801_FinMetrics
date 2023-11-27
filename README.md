@@ -1,10 +1,10 @@
 # Purpose and Structure
 
-The purpose of this repository is to host my Financial Econometrics 871
+The purpose of this repository is to host my Financial Econometrics
 Practical Exam.
 
-This README contains the code for wrangling for and plotting. Functions
-are contained within scripts in the code folders of the corresponding
+This README contains the code for wrangling and plotting. Functions are
+contained within scripts in the code folders of the corresponding
 questions. The logic and code is explained throughout. After each
 output, an interpretation is given. For the same interpretations, in a
 more formal setting, see the pdf files in each question folder.
@@ -13,7 +13,7 @@ more formal setting, see the pdf files in each question folder.
 
 This question investigates returns from an AI Fund, a market benchmark
 (CAPPED SWIX) and active managers. It aims to shed light on the
-differences and similarity in return structures through various
+differences and similarities in return structures through various
 visualisation techniques. The powerpoint is in the Question 1 folder, as
 the data folder is “gitignored”
 
@@ -79,9 +79,9 @@ AIvsBenchmark <- chart.Scatter(x = xts.returnDF$AI,
 
 The figure above now shows a scatter between the returns of the
 benchmark and the AI fund. An even stronger positive correlation is now
-visible. This means that for, in both cases, it is rare for the AI fund
-to show a negative return when the other funds show a positive return
-and vice-versa.
+visible. This means that, in both cases, it is rare for the AI fund to
+show a negative return when the other funds show a positive return and
+vice-versa.
 
 The next step is to calculate rolling returns for all 3 funds. I
 calculate the annualised rolling 3 year return using the ‘roll_prod’
@@ -191,20 +191,21 @@ densityPlot <- ggplot(returnDF, aes(x = Returns)) +
 densityPlot
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-8-1.png) The
-density functions of returns, grouped by fund, show a clear result.
-Active managers tend to perform below the market benchmark. The marker
+![](README_files/figure-markdown_github/unnamed-chunk-8-1.png)
+
+The density functions of returns, grouped by fund, show a clear result.
+Active managers tend to perform below the market benchmark. The market
 benchmark here was defined as the average return of the benchmark, as
 can be seen in the code above. The market benchmark and the AI fund
 perform very similar. The key difference here lies in the flatter
-distribution of the AI fund, meaning it is less consistent that the
+distribution of the AI fund, meaning it is less consistent than the
 market benchmark.
 
 The next chunk of code aims to compare the AI fund with the best and
 worst performing actively managed fund. This is done by first filtering
 the raw data to contain only funds with complete data, as some funds
 only started recently or closed down, which makes comparison difficult.
-Next the best active fund is selected by calculating the average return
+Next, the best active fund is selected by calculating the average return
 for all funds and selecting the best one. The worst fund is found the
 exact same way. I then calculate the rolling returns for these two
 funds, using ‘RcppRoll’ and then join them in a data frame with the
@@ -305,7 +306,7 @@ beneficial effects. I then go further by showing how the volatility of a
 portfolio can actually be increased through hedging.
 
 For data preparation I load in the data and then apply the weights
-specified in the question to the corresponding asset by multiplying it
+specified in the question to the corresponding asset by multiplying its
 return with the corresponding weight. Summing these returns then yield
 the total portfolio returns. I then calculate the ZAR returns and lastly
 join the two return series’ into one data frame.
@@ -1097,7 +1098,7 @@ result holds for the 6 month, 1 year and 3 year correlations.
 
 # Question 5
 
-This question investigates the Rand’s notorious volatility. To this I
+This question investigates the Rand’s notorious volatility. To do this I
 first fit a univariate GARCH in order to investigate the structural
 volatility of the Rand. I then compare it with other highly volatile
 currencies. Finally, I fit a multivariate GARCH between the Rand and a
